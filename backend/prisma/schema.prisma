@@ -1,0 +1,432 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthProviderType {
+  omnione_cx
+  mobile_id_sdk
+  raonsecure_sdk
+}
+
+enum ClientType {
+  admin_web
+  mobile_app
+}
+
+enum AuthRequestStatus {
+  pending
+  verified
+  expired
+  failed
+}
+
+enum DidMethod {
+  campass
+  omnione
+  opendid
+}
+
+enum ProofStatus {
+  pending
+  approved
+  rejected
+}
+
+enum FestivalStatus {
+  draft
+  active
+  ended
+}
+
+enum Visibility {
+  public
+  private
+}
+
+enum BoothCategory {
+  food
+  experience
+  goods
+  event
+  alcohol
+}
+
+enum OperatingStatus {
+  open
+  crowded
+  closing_soon
+  closed
+}
+
+enum RequiredPermission {
+  none
+  entry
+  student
+  adult
+  staff
+}
+
+enum BenefitPolicy {
+  none
+  once_per_user
+  once_per_day
+  student_once
+  adult_once
+}
+
+enum CredentialType {
+  entry
+  student
+  adult
+  staff
+  admin
+}
+
+enum CredentialStatus {
+  issued
+  pending
+  expired
+  revoked
+}
+
+enum InviteStatus {
+  active
+  expired
+  revoked
+}
+
+enum StaffRequestStatus {
+  requested
+  approved
+  rejected
+}
+
+enum QrPurpose {
+  entry
+  benefit
+  event
+  adult_check
+  student_check
+}
+
+enum ScanPurpose {
+  entry
+  benefit
+  event
+  adult_check
+  student_check
+}
+
+enum VerificationResult {
+  allowed
+  denied
+  expired
+  already_used
+  missing_credential
+  invalid_qr
+  missing_staff_scope
+}
+
+enum UsageType {
+  entry
+  benefit
+  event
+  adult_check
+  student_check
+}
+
+model User {
+  id                  String           @id @default(uuid())
+  provider            AuthProviderType
+  providerUserId      String           @map("provider_user_id")
+  name                String?
+  phone               String?
+  birthDate           String?          @map("birth_date")
+  isAdult             Boolean?         @map("is_adult")
+  did                 String?          @unique
+  didMethod           DidMethod        @default(campass) @map("did_method")
+  externalDid         String?          @unique @map("external_did")
+  didDocumentJson     Json?            @map("did_document_json")
+  didRegisteredAt     DateTime?        @map("did_registered_at")
+  didRegistrationTxId String?          @map("did_registration_tx_id")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  adminProfile         AdminProfile?
+  ownedFestivals       Festival[]            @relation("FestivalOwner")
+  credentials          Credential[]
+  staffInvitesCreated  StaffInvite[]         @relation("StaffInviteCreator")
+  staffRequests        StaffRequest[]
+  qrTokens             QrToken[]
+  studentVerifications StudentVerification[]
+
+  @@unique([provider, providerUserId])
+  @@map("users")
+}
+
+model AuthRequest {
+  id               String            @id
+  provider         AuthProviderType
+  clientType       ClientType        @map("client_type")
+  nonce            String
+  state            String
+  status           AuthRequestStatus @default(pending)
+  oacxToken        String?           @map("oacx_token")
+  oacxTxId         String?           @map("oacx_tx_id")
+  oacxCxId         String?           @map("oacx_cx_id")
+  oacxProvider     String?           @map("oacx_provider")
+  oacxRequestType  String?           @map("oacx_request_type")
+  oacxAuthFlow     String?           @map("oacx_auth_flow")
+  oacxUseConvertor Boolean?          @map("oacx_use_convertor")
+  oacxStatus       String?           @map("oacx_status")
+  oacxResultCode   String?           @map("oacx_result_code")
+  expiresAt        DateTime          @map("expires_at")
+  verifiedAt       DateTime?         @map("verified_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  @@index([provider, status])
+  @@index([oacxTxId])
+  @@index([oacxCxId])
+  @@map("auth_requests")
+}
+
+model AdminProfile {
+  id               String      @id @default(uuid())
+  userId           String      @unique @map("user_id")
+  schoolName       String      @map("school_name")
+  organizationName String      @map("organization_name")
+  department       String?
+  position         String?
+  role             String
+  proofStatus      ProofStatus @default(pending) @map("proof_status")
+  proofFileUrl     String?     @map("proof_file_url")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("admin_profiles")
+}
+
+model StudentVerification {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  festivalId      String      @map("festival_id")
+  schoolName      String      @map("school_name")
+  studentId       String      @map("student_id")
+  schoolEmail     String      @map("school_email")
+  proofFileUrl    String?     @map("proof_file_url")
+  status          ProofStatus @default(pending)
+  reviewedBy      String?     @map("reviewed_by")
+  reviewedAt      DateTime?   @map("reviewed_at")
+  rejectionReason String?     @map("rejection_reason")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id])
+  festival Festival @relation(fields: [festivalId], references: [id])
+
+  @@unique([userId, festivalId])
+  @@index([festivalId, status])
+  @@map("student_verifications")
+}
+
+model Festival {
+  id            String         @id @default(uuid())
+  ownerId       String         @map("owner_id")
+  name          String
+  description   String?
+  schoolName    String         @map("school_name")
+  startDate     DateTime       @map("start_date")
+  endDate       DateTime       @map("end_date")
+  location      String?
+  operatingTime String?        @map("operating_time")
+  imageUrl      String?        @map("image_url")
+  visibility    Visibility     @default(private)
+  status        FestivalStatus @default(draft)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  owner                User                  @relation("FestivalOwner", fields: [ownerId], references: [id])
+  booths               Booth[]
+  passTemplates        PassTemplate[]
+  credentials          Credential[]
+  staffInvites         StaffInvite[]
+  staffRequests        StaffRequest[]
+  qrTokens             QrToken[]
+  studentVerifications StudentVerification[]
+
+  @@index([status, visibility])
+  @@map("festivals")
+}
+
+model Booth {
+  id                  String             @id @default(uuid())
+  festivalId          String             @map("festival_id")
+  name                String
+  description         String?
+  category            BoothCategory
+  location            String?
+  operatingStatus     OperatingStatus    @default(open) @map("operating_status")
+  currentWaitingCount Int                @default(0) @map("current_waiting_count")
+  expectedWaitTime    Int?               @map("expected_wait_time")
+  requiredPermission  RequiredPermission @default(none) @map("required_permission")
+  benefitPolicy       BenefitPolicy      @default(none) @map("benefit_policy")
+  posterUrl           String?            @map("poster_url")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  festival Festival @relation(fields: [festivalId], references: [id])
+
+  @@index([festivalId, operatingStatus])
+  @@map("booths")
+}
+
+model PassTemplate {
+  id               String         @id @default(uuid())
+  festivalId       String         @map("festival_id")
+  type             CredentialType
+  name             String
+  enabled          Boolean        @default(true)
+  verificationRule Json?          @map("verification_rule")
+  expiresAt        DateTime?      @map("expires_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  festival Festival @relation(fields: [festivalId], references: [id])
+
+  @@unique([festivalId, type])
+  @@index([festivalId, type])
+  @@map("pass_templates")
+}
+
+model Credential {
+  id                   String           @id @default(uuid())
+  userId               String           @map("user_id")
+  subjectDid           String           @map("subject_did")
+  issuerDid            String           @map("issuer_did")
+  festivalId           String?          @map("festival_id")
+  type                 CredentialType
+  status               CredentialStatus @default(issued)
+  claimsJson           Json             @map("claims_json")
+  credentialProvider   String           @default("internal") @map("credential_provider")
+  externalCredentialId String?          @unique @map("external_credential_id")
+  vcJwt                String?          @map("vc_jwt")
+  vcDocumentJson       Json?            @map("vc_document_json")
+  proofJson            Json?            @map("proof_json")
+  schemaId             String?          @map("schema_id")
+  issuerServiceId      String?          @map("issuer_service_id")
+  credentialStatusId   String?          @map("credential_status_id")
+  externalStatus       String?          @map("external_status")
+  issuedTxId           String?          @map("issued_tx_id")
+  revokedTxId          String?          @map("revoked_tx_id")
+  issuedAt             DateTime         @default(now()) @map("issued_at")
+  expiresAt            DateTime?        @map("expires_at")
+  revokedAt            DateTime?        @map("revoked_at")
+
+  user     User      @relation(fields: [userId], references: [id])
+  festival Festival? @relation(fields: [festivalId], references: [id])
+
+  @@index([userId, festivalId, type, status])
+  @@index([subjectDid, type, status])
+  @@index([credentialProvider, type, status])
+  @@index([credentialStatusId])
+  @@map("credentials")
+}
+
+model StaffInvite {
+  id         String       @id @default(uuid())
+  festivalId String       @map("festival_id")
+  createdBy  String       @map("created_by")
+  inviteCode String       @unique @map("invite_code")
+  role       String
+  scopeJson  Json         @map("scope_json")
+  expiresAt  DateTime     @map("expires_at")
+  status     InviteStatus @default(active)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  festival Festival       @relation(fields: [festivalId], references: [id])
+  creator  User           @relation("StaffInviteCreator", fields: [createdBy], references: [id])
+  requests StaffRequest[]
+
+  @@index([festivalId, status])
+  @@map("staff_invites")
+}
+
+model StaffRequest {
+  id            String             @id @default(uuid())
+  inviteId      String             @map("invite_id")
+  festivalId    String             @map("festival_id")
+  userId        String             @map("user_id")
+  requestedRole String             @map("requested_role")
+  maskedDid     String             @map("masked_did")
+  status        StaffRequestStatus @default(requested)
+  approvedAt    DateTime?          @map("approved_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  invite   StaffInvite @relation(fields: [inviteId], references: [id])
+  festival Festival    @relation(fields: [festivalId], references: [id])
+  user     User        @relation(fields: [userId], references: [id])
+
+  @@unique([userId, festivalId])
+  @@index([festivalId, status])
+  @@map("staff_requests")
+}
+
+model QrToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  festivalId String    @map("festival_id")
+  token      String    @unique
+  purpose    QrPurpose
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user     User      @relation(fields: [userId], references: [id])
+  festival Festival  @relation(fields: [festivalId], references: [id])
+  scanLogs ScanLog[]
+
+  @@index([festivalId, userId, purpose])
+  @@map("qr_tokens")
+}
+
+model ScanLog {
+  id          String             @id @default(uuid())
+  festivalId  String             @map("festival_id")
+  staffId     String?            @map("staff_id")
+  userId      String?            @map("user_id")
+  boothId     String?            @map("booth_id")
+  qrTokenId   String?            @map("qr_token_id")
+  scanPurpose ScanPurpose        @map("scan_purpose")
+  result      VerificationResult
+  reason      String?
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  qrToken QrToken? @relation(fields: [qrTokenId], references: [id])
+
+  @@index([festivalId, createdAt])
+  @@index([staffId, createdAt])
+  @@index([qrTokenId])
+  @@map("scan_logs")
+}
+
+model UsageRecord {
+  id         String    @id @default(uuid())
+  festivalId String    @map("festival_id")
+  boothId    String?   @map("booth_id")
+  userId     String    @map("user_id")
+  staffId    String?   @map("staff_id")
+  usageType  UsageType @map("usage_type")
+  usageKey   String    @map("usage_key")
+  usedAt     DateTime  @default(now()) @map("used_at")
+
+  @@unique([festivalId, userId, usageType, usageKey])
+  @@index([festivalId, usageType, usedAt])
+  @@map("usage_records")
+}
