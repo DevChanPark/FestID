@@ -233,15 +233,44 @@ Wallet flow helper APIs exposed by CamPass:
 
 ```http
 POST /opendid/wallet/issue-offer
+POST /opendid/wallet/issue-inspect-propose
 POST /opendid/wallet/issue-profile
+POST /opendid/wallet/issue-vc
+POST /opendid/wallet/issue-complete
+GET  /opendid/wallet/issue-result/:transactionId
 POST /opendid/wallet/verify-offer
 POST /opendid/wallet/verify-profile
+POST /opendid/wallet/verify-vp
+POST /opendid/wallet/verify-confirm
+GET  /opendid/wallet/transactions
+GET  /opendid/wallet/transactions/:transactionId
 ```
 
 `issue-offer` must be called with a CamPass credential id owned by the
 authenticated user. The backend resolves the matching OpenDID VC plan id and
 returns the official issuer offer payload. `verify-offer` resolves the matching
 verifier policy id and returns the official verifier offer payload.
+
+Both offer APIs return `walletTransactionId`. Send that id back on the matching
+profile request, and use `GET /opendid/wallet/transactions/:transactionId` when
+the frontend needs to check whether the OpenDID flow is still active or has
+expired. The transaction status response is sanitized; the bridge endpoints
+only return the OpenDID payloads needed by the wallet flow.
+
+Use `GET /opendid/wallet/transactions?flowType=issue&status=profile_requested`
+to recover active flows after mobile app refresh/restart. Each item includes a
+`nextAction` hint.
+
+The backend tracks these official OpenDID protocol steps:
+
+```text
+Issuer:
+request-offer -> inspect-propose-issue -> generate-issue-profile
+-> issue-vc -> complete-vc -> issue-vc/result
+
+Verifier:
+request-offer-qr -> request-profile -> request-verify -> confirm-verify
+```
 
 ## 7. API Mapping
 

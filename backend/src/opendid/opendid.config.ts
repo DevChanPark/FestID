@@ -85,9 +85,24 @@ export class OpenDidConfigService {
       '/issuer/api/v1/request-offer';
   }
 
+  get issueInspectProposePath(): string {
+    return this.configService.get<string>('OPENDID_ISSUE_INSPECT_PROPOSE_PATH') ??
+      '/issuer/api/v1/inspect-propose-issue';
+  }
+
   get issueProfilePath(): string {
     return this.configService.get<string>('OPENDID_ISSUE_PROFILE_PATH') ??
       '/issuer/api/v1/generate-issue-profile';
+  }
+
+  get issueCompletePath(): string {
+    return this.configService.get<string>('OPENDID_ISSUE_COMPLETE_PATH') ??
+      '/issuer/api/v1/complete-vc';
+  }
+
+  get issueResultPath(): string {
+    return this.configService.get<string>('OPENDID_ISSUE_RESULT_PATH') ??
+      '/issuer/api/v1/issue-vc/result';
   }
 
   get verifyOfferPath(): string {
@@ -98,6 +113,11 @@ export class OpenDidConfigService {
   get verifyProfilePath(): string {
     return this.configService.get<string>('OPENDID_VERIFY_PROFILE_PATH') ??
       '/verifier/api/v1/request-profile';
+  }
+
+  get verifyConfirmPath(): string {
+    return this.configService.get<string>('OPENDID_VERIFY_CONFIRM_PATH') ??
+      '/verifier/api/v1/confirm-verify';
   }
 
   get issuerHealthPath(): string | undefined {
@@ -116,6 +136,12 @@ export class OpenDidConfigService {
     const raw = this.configService.get<string>('OPENDID_REQUEST_TIMEOUT_MS');
     const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 10000;
+  }
+
+  get walletTransactionTtlMs(): number {
+    const raw = this.configService.get<string>('OPENDID_WALLET_TRANSACTION_TTL_MS');
+    const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 10 * 60 * 1000;
   }
 
   getSchemaId(type: OpenDidCredentialType): string | undefined {

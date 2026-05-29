@@ -7,9 +7,13 @@ ISSUE_PATH="${OPENDID_CREDENTIAL_ISSUE_PATH:-/issuer/api/v1/issue-vc}"
 REVOKE_PATH="${OPENDID_CREDENTIAL_REVOKE_PATH:-/issuer/api/v1/revoke-vc}"
 VERIFY_PATH="${OPENDID_CREDENTIAL_VERIFY_PATH:-/verifier/api/v1/request-verify}"
 ISSUE_OFFER_PATH="${OPENDID_ISSUE_OFFER_PATH:-/issuer/api/v1/request-offer}"
+ISSUE_INSPECT_PROPOSE_PATH="${OPENDID_ISSUE_INSPECT_PROPOSE_PATH:-/issuer/api/v1/inspect-propose-issue}"
 ISSUE_PROFILE_PATH="${OPENDID_ISSUE_PROFILE_PATH:-/issuer/api/v1/generate-issue-profile}"
+ISSUE_COMPLETE_PATH="${OPENDID_ISSUE_COMPLETE_PATH:-/issuer/api/v1/complete-vc}"
+ISSUE_RESULT_PATH="${OPENDID_ISSUE_RESULT_PATH:-/issuer/api/v1/issue-vc/result}"
 VERIFY_OFFER_PATH="${OPENDID_VERIFY_OFFER_PATH:-/verifier/api/v1/request-offer-qr}"
 VERIFY_PROFILE_PATH="${OPENDID_VERIFY_PROFILE_PATH:-/verifier/api/v1/request-profile}"
+VERIFY_CONFIRM_PATH="${OPENDID_VERIFY_CONFIRM_PATH:-/verifier/api/v1/confirm-verify}"
 
 require_command() {
   local command_name="$1"
@@ -35,7 +39,7 @@ trap 'rm -f "$ISSUER_DOCS" "$VERIFIER_DOCS"' EXIT
 fetch_api_docs "$ISSUER_BASE_URL" "$ISSUER_DOCS"
 fetch_api_docs "$VERIFIER_BASE_URL" "$VERIFIER_DOCS"
 
-node - "$ISSUER_DOCS" "$VERIFIER_DOCS" "$ISSUE_PATH" "$REVOKE_PATH" "$VERIFY_PATH" "$ISSUE_OFFER_PATH" "$ISSUE_PROFILE_PATH" "$VERIFY_OFFER_PATH" "$VERIFY_PROFILE_PATH" <<'NODE'
+node - "$ISSUER_DOCS" "$VERIFIER_DOCS" "$ISSUE_PATH" "$REVOKE_PATH" "$VERIFY_PATH" "$ISSUE_OFFER_PATH" "$ISSUE_INSPECT_PROPOSE_PATH" "$ISSUE_PROFILE_PATH" "$ISSUE_COMPLETE_PATH" "$ISSUE_RESULT_PATH" "$VERIFY_OFFER_PATH" "$VERIFY_PROFILE_PATH" "$VERIFY_CONFIRM_PATH" <<'NODE'
 const fs = require('fs');
 
 const [
@@ -47,9 +51,13 @@ const [
   revokePath,
   verifyPath,
   issueOfferPath,
+  issueInspectProposePath,
   issueProfilePath,
+  issueCompletePath,
+  issueResultPath,
   verifyOfferPath,
   verifyProfilePath,
+  verifyConfirmPath,
 ] = process.argv;
 
 const issuerDocs = JSON.parse(fs.readFileSync(issuerDocsPath, 'utf8'));
@@ -81,14 +89,18 @@ function printMatching(label, docs, prefix) {
 
 printCheck('Configured issuer paths', issuerDocs, [
   issueOfferPath,
+  issueInspectProposePath,
   issueProfilePath,
   issuePath,
+  issueCompletePath,
+  issueResultPath,
   revokePath,
 ]);
 printCheck('Configured verifier paths', verifierDocs, [
   verifyOfferPath,
   verifyProfilePath,
   verifyPath,
+  verifyConfirmPath,
 ]);
 printMatching('Issuer protocol', issuerDocs, '/issuer/api/v1/');
 printMatching('Verifier protocol', verifierDocs, '/verifier/api/v1/');

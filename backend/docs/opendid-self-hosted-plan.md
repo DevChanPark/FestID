@@ -193,9 +193,17 @@ CamPass exposes authenticated helper APIs for the official holder wallet flow:
 
 ```http
 POST /opendid/wallet/issue-offer
+POST /opendid/wallet/issue-inspect-propose
 POST /opendid/wallet/issue-profile
+POST /opendid/wallet/issue-vc
+POST /opendid/wallet/issue-complete
+GET  /opendid/wallet/issue-result/:transactionId
 POST /opendid/wallet/verify-offer
 POST /opendid/wallet/verify-profile
+POST /opendid/wallet/verify-vp
+POST /opendid/wallet/verify-confirm
+GET  /opendid/wallet/transactions
+GET  /opendid/wallet/transactions/:transactionId
 ```
 
 These APIs do not place VC documents or personal data into CamPass QR payloads.
@@ -205,10 +213,32 @@ issuer/verifier protocol:
 - `issue-offer`: accepts a CamPass `credentialId`, checks that it belongs to the
   authenticated user and is `issued`, resolves the credential type's
   `OPENDID_*_VC_PLAN_ID`, and calls `/issuer/api/v1/request-offer`.
+- `issue-inspect-propose`: forwards the holder proposal to
+  `/issuer/api/v1/inspect-propose-issue`.
 - `issue-profile`: forwards holder DID data to `/issuer/api/v1/generate-issue-profile`.
+- `issue-vc`: forwards `accE2e` and `encReqVc` to `/issuer/api/v1/issue-vc`.
+- `issue-complete`: forwards `vcId` to `/issuer/api/v1/complete-vc`, then marks
+  the CamPass credential as externally issued by OpenDID.
+- `issue-result/:transactionId`: calls `/issuer/api/v1/issue-vc/result` with the
+  stored `offerId`.
 - `verify-offer`: resolves the credential type's `OPENDID_*_VERIFY_POLICY_ID`
   and calls `/verifier/api/v1/request-offer-qr`.
 - `verify-profile`: forwards the OpenDID offer id to `/verifier/api/v1/request-profile`.
+- `verify-vp`: forwards `accE2e` and `encVp` to `/verifier/api/v1/request-verify`.
+- `verify-confirm`: calls `/verifier/api/v1/confirm-verify` and stores the
+  verification result.
+- `transactions`: lists the authenticated user's sanitized OpenDID transaction
+  state, with optional `flowType`, `status`, `limit`, and `offset` query params.
+- `transactions/:transactionId`: returns sanitized CamPass-side transaction
+  state for frontend retry/expiry handling. It does not return raw OpenDID
+  payloads or VC documents.
+
+Every offer response includes `walletTransactionId`. Frontend clients should
+send it back on the matching profile request when possible. The backend also
+stores `txId`, `offerId`, `requestId`, `vcPlanId` or `policyId`, and expiry
+metadata in `opendid_wallet_transactions`. Transaction responses include
+`nextAction` so clients can recover after an app restart without guessing the
+next OpenDID step.
 
 The existing `OpenDidCredentialProvider.issueCredential()` remains reserved for
 custom direct adapter endpoints. Official OpenDID issuance is a holder wallet

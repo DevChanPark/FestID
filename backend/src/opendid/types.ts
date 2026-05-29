@@ -16,6 +16,7 @@ export interface OpenDidCredentialConfig {
 }
 
 export interface OpenDidWalletIssueOfferResult {
+  walletTransactionId: string;
   credentialId: string;
   credentialType: OpenDidCredentialType;
   festivalId?: string | null;
@@ -26,6 +27,7 @@ export interface OpenDidWalletIssueOfferResult {
 }
 
 export interface OpenDidWalletVerifyOfferResult {
+  walletTransactionId: string;
   credentialType: OpenDidCredentialType;
   policyId: string;
   requestId: string;

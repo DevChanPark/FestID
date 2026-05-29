@@ -140,6 +140,20 @@ enum UsageType {
   student_check
 }
 
+enum OpenDidWalletFlowType {
+  issue
+  verify
+}
+
+enum OpenDidWalletFlowStatus {
+  offer_created
+  profile_requested
+  request_submitted
+  completed
+  failed
+  expired
+}
+
 model User {
   id                  String           @id @default(uuid())
   provider            AuthProviderType
@@ -157,13 +171,14 @@ model User {
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @updatedAt @map("updated_at")
 
-  adminProfile         AdminProfile?
-  ownedFestivals       Festival[]            @relation("FestivalOwner")
-  credentials          Credential[]
-  staffInvitesCreated  StaffInvite[]         @relation("StaffInviteCreator")
-  staffRequests        StaffRequest[]
-  qrTokens             QrToken[]
-  studentVerifications StudentVerification[]
+  adminProfile              AdminProfile?
+  ownedFestivals            Festival[]                 @relation("FestivalOwner")
+  credentials               Credential[]
+  staffInvitesCreated       StaffInvite[]              @relation("StaffInviteCreator")
+  staffRequests             StaffRequest[]
+  qrTokens                  QrToken[]
+  studentVerifications      StudentVerification[]
+  openDidWalletTransactions OpenDidWalletTransaction[]
 
   @@unique([provider, providerUserId])
   @@map("users")
@@ -252,14 +267,15 @@ model Festival {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
-  owner                User                  @relation("FestivalOwner", fields: [ownerId], references: [id])
-  booths               Booth[]
-  passTemplates        PassTemplate[]
-  credentials          Credential[]
-  staffInvites         StaffInvite[]
-  staffRequests        StaffRequest[]
-  qrTokens             QrToken[]
-  studentVerifications StudentVerification[]
+  owner                     User                       @relation("FestivalOwner", fields: [ownerId], references: [id])
+  booths                    Booth[]
+  passTemplates             PassTemplate[]
+  credentials               Credential[]
+  staffInvites              StaffInvite[]
+  staffRequests             StaffRequest[]
+  qrTokens                  QrToken[]
+  studentVerifications      StudentVerification[]
+  openDidWalletTransactions OpenDidWalletTransaction[]
 
   @@index([status, visibility])
   @@map("festivals")
@@ -329,8 +345,9 @@ model Credential {
   expiresAt            DateTime?        @map("expires_at")
   revokedAt            DateTime?        @map("revoked_at")
 
-  user     User      @relation(fields: [userId], references: [id])
-  festival Festival? @relation(fields: [festivalId], references: [id])
+  user                      User                       @relation(fields: [userId], references: [id])
+  festival                  Festival?                  @relation(fields: [festivalId], references: [id])
+  openDidWalletTransactions OpenDidWalletTransaction[]
 
   @@index([userId, festivalId, type, status])
   @@index([subjectDid, type, status])
@@ -429,4 +446,42 @@ model UsageRecord {
   @@unique([festivalId, userId, usageType, usageKey])
   @@index([festivalId, usageType, usedAt])
   @@map("usage_records")
+}
+
+model OpenDidWalletTransaction {
+  id             String                  @id @default(uuid())
+  userId         String                  @map("user_id")
+  credentialId   String?                 @map("credential_id")
+  festivalId     String?                 @map("festival_id")
+  credentialType CredentialType          @map("credential_type")
+  flowType       OpenDidWalletFlowType   @map("flow_type")
+  status         OpenDidWalletFlowStatus @default(offer_created)
+  requestId      String?                 @map("request_id")
+  txId           String?                 @map("tx_id")
+  offerId        String?                 @map("offer_id")
+  vcPlanId       String?                 @map("vc_plan_id")
+  policyId       String?                 @map("policy_id")
+  holderDid      String?                 @map("holder_did")
+  payloadJson    Json?                   @map("payload_json")
+  profileJson    Json?                   @map("profile_json")
+  resultJson     Json?                   @map("result_json")
+  rawJson        Json?                   @map("raw_json")
+  errorCode      String?                 @map("error_code")
+  errorMessage   String?                 @map("error_message")
+  expiresAt      DateTime                @map("expires_at")
+  completedAt    DateTime?               @map("completed_at")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id])
+  credential Credential? @relation(fields: [credentialId], references: [id])
+  festival   Festival?   @relation(fields: [festivalId], references: [id])
+
+  @@index([userId, flowType, status])
+  @@index([credentialId])
+  @@index([festivalId, credentialType, flowType])
+  @@index([txId])
+  @@index([offerId])
+  @@index([expiresAt])
+  @@map("opendid_wallet_transactions")
 }

@@ -127,7 +127,39 @@ POST /staff-invites/:inviteCode/request
 GET  /festivals/:festivalId/staff/me
 ```
 
-## 6. Staff Scan Flow
+## 6. OpenDID Wallet Flow
+
+These APIs bridge the mobile app/wallet and the self-hosted OpenDID
+issuer/verifier servers. They require the same CamPass access token as the app.
+
+```txt
+POST /opendid/wallet/issue-offer
+POST /opendid/wallet/issue-inspect-propose
+POST /opendid/wallet/issue-profile
+POST /opendid/wallet/issue-vc
+POST /opendid/wallet/issue-complete
+GET  /opendid/wallet/issue-result/:transactionId
+
+POST /opendid/wallet/verify-offer
+POST /opendid/wallet/verify-profile
+POST /opendid/wallet/verify-vp
+POST /opendid/wallet/verify-confirm
+
+GET  /opendid/wallet/transactions
+GET  /opendid/wallet/transactions/:transactionId
+```
+
+Every offer response includes `walletTransactionId`. The app should pass that
+value into the next step and can call `GET /opendid/wallet/transactions` to
+recover active flows after app refresh/restart. Transaction responses include a
+sanitized `nextAction` such as `request_issue_profile`, `request_issue_vc`,
+`confirm_verify`, or `none`.
+
+The backend stores OpenDID raw protocol payloads server-side. CamPass QR payloads
+still contain only short QR tokens and never contain VC documents or personal
+identity fields.
+
+## 7. Staff Scan Flow
 
 ```txt
 POST /verification/qr

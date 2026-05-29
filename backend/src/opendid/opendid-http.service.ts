@@ -20,8 +20,12 @@ export class OpenDidHttpService {
     return this.request<T>('POST', baseUrl, path, body);
   }
 
-  get<T>(baseUrl: string, path: string): Promise<T> {
-    return this.request<T>('GET', baseUrl, path);
+  get<T>(
+    baseUrl: string,
+    path: string,
+    query?: Record<string, string | undefined>,
+  ): Promise<T> {
+    return this.request<T>('GET', baseUrl, path, undefined, query);
   }
 
   private request<T>(
@@ -29,8 +33,14 @@ export class OpenDidHttpService {
     baseUrl: string,
     path: string,
     body?: Record<string, unknown>,
+    query?: Record<string, string | undefined>,
   ): Promise<T> {
     const url = new URL(path, this.withTrailingSlash(baseUrl));
+    for (const [key, value] of Object.entries(query ?? {})) {
+      if (value !== undefined) {
+        url.searchParams.set(key, value);
+      }
+    }
     const payload = body === undefined ? undefined : JSON.stringify(body);
     const transport = url.protocol === 'https:' ? httpsRequest : httpRequest;
 

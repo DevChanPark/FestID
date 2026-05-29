@@ -27,8 +27,11 @@ export class OpenDidStatusService {
       probe: options?.probe,
       requiredPaths: [
         this.openDidConfigService.issueOfferPath,
+        this.openDidConfigService.issueInspectProposePath,
         this.openDidConfigService.issueProfilePath,
         this.openDidConfigService.issuePath,
+        this.openDidConfigService.issueCompletePath,
+        this.openDidConfigService.issueResultPath,
         this.openDidConfigService.revokePath,
       ],
     });
@@ -40,6 +43,7 @@ export class OpenDidStatusService {
         this.openDidConfigService.verifyOfferPath,
         this.openDidConfigService.verifyProfilePath,
         this.openDidConfigService.verifyPath,
+        this.openDidConfigService.verifyConfirmPath,
       ],
     });
 
@@ -68,9 +72,14 @@ export class OpenDidStatusService {
         revoke: this.openDidConfigService.revokePath,
         verify: this.openDidConfigService.verifyPath,
         issueOffer: this.openDidConfigService.issueOfferPath,
+        issueInspectPropose:
+          this.openDidConfigService.issueInspectProposePath,
         issueProfile: this.openDidConfigService.issueProfilePath,
+        issueComplete: this.openDidConfigService.issueCompletePath,
+        issueResult: this.openDidConfigService.issueResultPath,
         verifyOffer: this.openDidConfigService.verifyOfferPath,
         verifyProfile: this.openDidConfigService.verifyProfilePath,
+        verifyConfirm: this.openDidConfigService.verifyConfirmPath,
       },
       schemas: {
         entry: this.openDidConfigService.getCredentialConfig('entry'),
