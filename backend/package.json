@@ -27,6 +27,10 @@
     "integration:check": "node scripts/integration/check-readiness.js",
     "integration:check:strict": "node scripts/integration/check-readiness.js --strict",
     "integration:check:probe": "node scripts/integration/check-readiness.js --probe",
+    "integration:check:cx": "node scripts/integration/check-readiness.js --target=cx",
+    "integration:check:opendid": "node scripts/integration/check-readiness.js --target=opendid",
+    "integration:check:frontend": "node scripts/integration/check-readiness.js --target=frontend",
+    "integration:check:e2e": "node scripts/integration/check-readiness.js --target=e2e",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"

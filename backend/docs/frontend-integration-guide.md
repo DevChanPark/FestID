@@ -130,6 +130,10 @@ missing_staff_scope
 The staff UI must display only result messages and permission booleans. Do not
 display name, birth date, phone, resident number, or raw credential claims.
 
+Staff users, invite codes, staff request ids, and Staff VC subject DIDs are
+runtime values. They are created by the staff invite/request/approval APIs and
+must not be hard-coded into `.env`.
+
 ## 4. OpenDID Issue Flow
 
 Use this when the app/wallet needs to receive an official OpenDID VC for a

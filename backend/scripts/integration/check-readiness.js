@@ -10,8 +10,56 @@ const envPath = path.join(rootDir, '.env');
 const envExamplePath = path.join(rootDir, '.env.example');
 const strict = process.argv.includes('--strict');
 const probe = process.argv.includes('--probe');
+const target = readArg('--target') ?? process.env.INTEGRATION_TARGET ?? 'core';
 
 const credentialTypes = ['ENTRY', 'ADULT', 'STUDENT', 'STAFF', 'ADMIN'];
+const targetGroups = {
+  core: ['core'],
+  cx: ['core', 'cx'],
+  opendid: ['core', 'opendid'],
+  frontend: ['core', 'frontend'],
+  e2e: ['core', 'cx', 'opendid', 'frontend'],
+};
+const fillableDefaults = {
+  OMNIONE_CX_BASE_URL: 'https://cx.raonsecure.co.kr:18543',
+  OMNIONE_CX_WEB_BASE_URL: 'https://cx.raonsecure.co.kr:17543/ent/esign',
+  OMNIONE_CX_CONFIG_URL:
+    'https://cx.raonsecure.co.kr:17543/ent/esign/config/config.mid.json',
+  OMNIONE_CX_PROVIDER_ID: 'comdl_v1.5',
+  OMNIONE_CX_SIGN_TYPE: 'ENT_MID',
+  OMNIONE_CX_REQUEST_TYPE: 'WEB2APP',
+  OMNIONE_CX_USE_CONVERTOR: 'false',
+  OPENDID_ISSUER_BASE_URL: 'http://localhost:8091',
+  OPENDID_VERIFIER_BASE_URL: 'http://localhost:8092',
+  OPENDID_ISSUER_SERVICE_ID: 'campass',
+  OPENDID_ISSUER_HEALTH_PATH: '/actuator/health',
+  OPENDID_VERIFIER_HEALTH_PATH: '/actuator/health',
+  OPENDID_ISSUE_OFFER_PATH: '/issuer/api/v1/request-offer',
+  OPENDID_ISSUE_INSPECT_PROPOSE_PATH:
+    '/issuer/api/v1/inspect-propose-issue',
+  OPENDID_ISSUE_PROFILE_PATH: '/issuer/api/v1/generate-issue-profile',
+  OPENDID_CREDENTIAL_ISSUE_PATH: '/issuer/api/v1/issue-vc',
+  OPENDID_ISSUE_COMPLETE_PATH: '/issuer/api/v1/complete-vc',
+  OPENDID_ISSUE_RESULT_PATH: '/issuer/api/v1/issue-vc/result',
+  OPENDID_CREDENTIAL_REVOKE_PATH: '/issuer/api/v1/revoke-vc',
+  OPENDID_VERIFY_OFFER_PATH: '/verifier/api/v1/request-offer-qr',
+  OPENDID_VERIFY_PROFILE_PATH: '/verifier/api/v1/request-profile',
+  OPENDID_CREDENTIAL_VERIFY_PATH: '/verifier/api/v1/request-verify',
+  OPENDID_VERIFY_CONFIRM_PATH: '/verifier/api/v1/confirm-verify',
+  ADMIN_WEB_ORIGIN: 'http://localhost:5173',
+  MOBILE_APP_DEEP_LINK_SCHEME: 'campass',
+  CAMPASS_QR_TTL_SECONDS: '180',
+};
+
+function readArg(name) {
+  const exact = process.argv.find((arg) => arg.startsWith(`${name}=`));
+  if (exact) {
+    return exact.slice(name.length + 1);
+  }
+
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : undefined;
+}
 
 function parseEnvFile(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -50,12 +98,12 @@ function unquote(value) {
 }
 
 function isFilled(env, key) {
-  const value = env[key];
+  const value = effectiveValue(env, key);
   return value !== undefined && value !== null && String(value).trim() !== '';
 }
 
 function isPlaceholder(env, key) {
-  const value = String(env[key] ?? '').trim();
+  const value = String(effectiveValue(env, key) ?? '').trim();
   return (
     value === '' ||
     value === '...' ||
@@ -64,18 +112,32 @@ function isPlaceholder(env, key) {
   );
 }
 
+function effectiveValue(env, key) {
+  if (env[key] !== undefined && String(env[key]).trim() !== '') {
+    return env[key];
+  }
+
+  return fillableDefaults[key];
+}
+
 function checkGroup(title, checks, env) {
   const rows = checks.map((check) => {
     const filled = isFilled(env, check.key);
     const placeholder = filled && isPlaceholder(env, check.key);
     const ok = filled && !placeholder;
-    const required = check.required !== false;
+    const usesDefault =
+      !isFilledWithoutDefault(env, check.key) &&
+      fillableDefaults[check.key] !== undefined;
+    const inScope = isInTargetScope(check);
+    const required = isRequiredForTarget(check);
     return {
       key: check.key,
       label: check.label,
       required,
+      inScope,
       ok,
-      status: ok ? 'OK' : required ? 'MISS' : 'WARN',
+      usesDefault,
+      status: ok ? (usesDefault ? 'DEF' : 'OK') : required ? 'MISS' : 'INFO',
     };
   });
 
@@ -83,8 +145,30 @@ function checkGroup(title, checks, env) {
 
   return {
     errors: rows.filter((row) => row.required && !row.ok),
-    warnings: rows.filter((row) => !row.required && !row.ok),
+    warnings: rows.filter((row) => row.inScope && !row.required && !row.ok),
   };
+}
+
+function isFilledWithoutDefault(env, key) {
+  const value = env[key];
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function isRequiredForTarget(check) {
+  if (check.required === false) {
+    return false;
+  }
+
+  return isInTargetScope(check);
+}
+
+function isInTargetScope(check) {
+  const scopes = targetGroups[target];
+  if (!scopes) {
+    return false;
+  }
+
+  return scopes.includes(check.scope ?? 'core');
 }
 
 function printGroup(title, rows) {
@@ -118,7 +202,7 @@ function buildChecks() {
       { key: 'OMNIONE_CX_REQUEST_TYPE' },
       { key: 'OMNIONE_CX_USE_CONVERTOR' },
       { key: 'OMNIONE_CX_ZKP_TYPE', required: false },
-    ],
+    ].map((row) => ({ ...row, scope: 'cx' })),
   });
 
   checks.push({
@@ -132,7 +216,7 @@ function buildChecks() {
       { key: 'OPENDID_VERIFIER_HEALTH_PATH' },
       { key: 'OPENDID_API_TOKEN', required: false },
       { key: 'OPENDID_ISSUER_KID', required: false },
-    ],
+    ].map((row) => ({ ...row, scope: 'opendid' })),
   });
 
   checks.push({
@@ -149,7 +233,7 @@ function buildChecks() {
       { key: 'OPENDID_VERIFY_PROFILE_PATH' },
       { key: 'OPENDID_CREDENTIAL_VERIFY_PATH' },
       { key: 'OPENDID_VERIFY_CONFIRM_PATH' },
-    ],
+    ].map((row) => ({ ...row, scope: 'opendid' })),
   });
 
   checks.push({
@@ -161,7 +245,7 @@ function buildChecks() {
       { key: `OPENDID_${type}_SCHEMA_ID`, required: false },
       { key: `OPENDID_${type}_ISSUE_PROFILE_ID`, required: false },
       { key: `OPENDID_${type}_CREDENTIAL_DEFINITION_ID`, required: false },
-    ]),
+    ]).map((row) => ({ ...row, scope: 'opendid' })),
   });
 
   checks.push({
@@ -173,7 +257,7 @@ function buildChecks() {
       { key: 'IOS_BUNDLE_ID', required: false },
       { key: 'MOBILE_ID_REDIRECT_URI', required: false },
       { key: 'CAMPASS_QR_TTL_SECONDS', required: false },
-    ],
+    ].map((row) => ({ ...row, scope: 'frontend' })),
   });
 
   return checks;
@@ -229,8 +313,11 @@ async function main() {
 
   console.log('CamPass integration readiness');
   console.log(`env file: ${usingLocalEnv ? envPath : `${envPath} missing, using .env.example defaults`}`);
+  console.log(`target: ${target}`);
   console.log(`strict: ${strict ? 'yes' : 'no'}`);
   console.log(`probe: ${probe ? 'yes' : 'no'}`);
+  console.log('status: OK=configured, DEF=using built-in local/default value, MISS=required for target, INFO=not required for target');
+  console.log('targets: core, cx, opendid, frontend, e2e');
 
   const totals = buildChecks().reduce(
     (acc, group) => {
@@ -247,13 +334,13 @@ async function main() {
     const probes = await Promise.all([
       probeEndpoint(
         'OpenDID issuer',
-        env.OPENDID_ISSUER_BASE_URL,
-        env.OPENDID_ISSUER_HEALTH_PATH,
+        effectiveValue(env, 'OPENDID_ISSUER_BASE_URL'),
+        effectiveValue(env, 'OPENDID_ISSUER_HEALTH_PATH'),
       ),
       probeEndpoint(
         'OpenDID verifier',
-        env.OPENDID_VERIFIER_BASE_URL,
-        env.OPENDID_VERIFIER_HEALTH_PATH,
+        effectiveValue(env, 'OPENDID_VERIFIER_BASE_URL'),
+        effectiveValue(env, 'OPENDID_VERIFIER_HEALTH_PATH'),
       ),
     ]);
     for (const result of probes) {
@@ -267,6 +354,19 @@ async function main() {
   console.log('\nSummary');
   console.log(`missing required: ${totals.errors.length}`);
   console.log(`missing optional: ${totals.warnings.length}`);
+
+  console.log('\nRuntime-created values, not .env');
+  for (const value of [
+    'users.did',
+    'staff_invites.invite_code',
+    'staff_requests.id',
+    'Staff VC subject DID and scope',
+    'qr_tokens.token',
+    'OpenDID walletTransactionId',
+    'OpenDID txId / offerId / vcId',
+  ]) {
+    console.log(`- ${value}`);
+  }
 
   if (totals.errors.length) {
     console.log('\nNext required values');

@@ -3,6 +3,10 @@
 This checklist turns the self-hosted OmniOneID issuer/verifier servers into
 values CamPass can use.
 
+For a full split between backend defaults, OpenDID console-generated values,
+frontend-owned values, and runtime-created values, see
+`docs/external-values-and-runtime-values.md`.
+
 ## 1. Start Servers
 
 ```bash

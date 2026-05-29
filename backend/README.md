@@ -40,5 +40,7 @@ npm run start:dev
 See `docs/local-api-flow.md` for the local API flow.
 See `docs/mobile-id-provider-integration.md` for the SDK integration contract.
 See `docs/frontend-integration-guide.md` for admin web/mobile app API contracts.
+See `docs/external-values-and-runtime-values.md` for values that are defaults,
+external setup outputs, frontend-owned values, or runtime-created values.
 See `docs/opendid-admin-console-setup.md` for OpenDID console setup.
 See `docs/e2e-test-checklist.md` for the end-to-end demo checklist.

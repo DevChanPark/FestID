@@ -19,9 +19,16 @@ Use these checks before frontend or wallet integration:
 
 ```bash
 npm run integration:check
+npm run integration:check:cx
+npm run integration:check:opendid
+npm run integration:check:frontend
+npm run integration:check:e2e
 npm run integration:check:probe
 npm run opendid:inspect-api-docs
 ```
+
+`integration:check` defaults to backend core readiness. Use target-specific
+checks when working on mobile ID, OpenDID, frontend, or full E2E integration.
 
 ## 2. Connect Real Mobile ID Provider
 
