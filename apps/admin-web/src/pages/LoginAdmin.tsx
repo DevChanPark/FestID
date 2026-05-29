@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getMyAdminProfile } from '../lib/adminApi'
 import { ApiError } from '../lib/api'
 import { startMobileIdAuth, verifyMobileIdAuth } from '../lib/auth'
@@ -32,11 +32,49 @@ export function LoginAdmin({
   const [isStarting, setIsStarting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [message, setMessage] = useState('')
+  const launchedAuthRequestIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!authResponse || launchedAuthRequestIdRef.current === authResponse.authRequestId) {
+      return
+    }
+
+    let cancelled = false
+
+    const launch = async () => {
+      try {
+        await waitForElement('oacxDiv')
+        if (cancelled || launchedAuthRequestIdRef.current === authResponse.authRequestId) {
+          return
+        }
+
+        launchedAuthRequestIdRef.current = authResponse.authRequestId
+        await launchOacxModule(authResponse.payload, (result) => {
+          if (!cancelled) {
+            setSdkResult(result)
+          }
+        })
+      } catch (error) {
+        console.warn('OACX module launch failed.', error)
+        if (!cancelled) {
+          launchedAuthRequestIdRef.current = null
+          setMessage('인증창 자동 호출에 실패했습니다. 모바일 인증 완료 후 확인 버튼으로 이어서 진행하세요.')
+        }
+      }
+    }
+
+    void launch()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authResponse])
 
   const handleStart = async () => {
     setIsStarting(true)
     setMessage('')
     setSdkResult(null)
+    launchedAuthRequestIdRef.current = null
 
     try {
       const response = await startMobileIdAuth({
@@ -48,11 +86,6 @@ export function LoginAdmin({
       })
 
       setAuthResponse(response)
-
-      await launchOacxModule(response.payload, setSdkResult).catch((error) => {
-        console.warn('OACX module launch failed.', error)
-        setMessage('인증창 자동 호출에 실패했습니다. 모바일 인증 완료 후 확인 버튼으로 이어서 진행하세요.')
-      })
     } catch (error) {
       setMessage(toErrorMessage(error, '모바일 신분증 인증 요청을 시작하지 못했습니다.'))
     } finally {
@@ -264,6 +297,33 @@ function MobileIdDialog({
       </section>
     </div>
   )
+}
+
+function waitForElement(id: string) {
+  if (document.getElementById(id)) {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    let attempts = 0
+
+    const check = () => {
+      attempts += 1
+      if (document.getElementById(id)) {
+        resolve()
+        return
+      }
+
+      if (attempts > 30) {
+        reject(new Error(`Element #${id} was not mounted.`))
+        return
+      }
+
+      window.requestAnimationFrame(check)
+    }
+
+    window.requestAnimationFrame(check)
+  })
 }
 
 async function launchOacxModule(
