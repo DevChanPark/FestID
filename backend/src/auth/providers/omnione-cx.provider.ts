@@ -86,6 +86,9 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
     ) as OmniOneRequestType;
     const signType =
       this.configService.get<string>('OMNIONE_CX_SIGN_TYPE') ?? 'ENT_MID';
+    const isBirth =
+      this.optionBoolean(input.options?.isBirth) ??
+      this.configService.get<string>('OMNIONE_CX_IS_BIRTH') !== 'false';
     const zkpType = this.optionString(
       input.options?.zkpType,
       this.configService.get<string>('OMNIONE_CX_ZKP_TYPE') ?? '',
@@ -107,7 +110,7 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
       provider: oacxProvider,
       token: trans.token,
       txId: trans.txId,
-      contentInfo: { signType },
+      contentInfo: { signType, isBirth },
     };
 
     if (authFlow === 'app') {
@@ -161,6 +164,7 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
         configUrl: this.configService.get<string>('OMNIONE_CX_CONFIG_URL'),
         cxId: authRequest.cxId,
         signType,
+        isBirth,
         oacxStatus: authRequest.oacxStatus,
         clientMessage: authRequest.clientMessage,
         data: authRequest.data,

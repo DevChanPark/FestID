@@ -78,6 +78,7 @@ type StartAdminMobileIdAuthOptions = {
   authFlow?: MobileIdAuthFlow
   oacxProvider?: string
   requestType?: 'WEB2APP' | 'APP2APP'
+  isBirth?: boolean
   zkpType?: string
   useConvertor?: boolean
 }

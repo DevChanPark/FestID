@@ -44,6 +44,23 @@ export class StartMobileIdAuthDto {
   requestType?: 'WEB2APP' | 'APP2APP';
 
   @ApiPropertyOptional({
+    description:
+      'Whether OmniOne CX should include/request birth-date verification data.',
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === true || value === 'true') {
+      return true;
+    }
+    if (value === false || value === 'false') {
+      return false;
+    }
+    return value;
+  })
+  @IsBoolean()
+  isBirth?: boolean;
+
+  @ApiPropertyOptional({
     description: 'OmniOne ZKP type such as AdultVerify or GenderVerify.',
   })
   @IsOptional()

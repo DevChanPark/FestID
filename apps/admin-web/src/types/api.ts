@@ -15,6 +15,7 @@ export type StartMobileIdAuthRequest = {
   authFlow?: MobileIdAuthFlow
   oacxProvider?: string
   requestType?: 'WEB2APP' | 'APP2APP'
+  isBirth?: boolean
   zkpType?: string
   useConvertor?: boolean
 }
@@ -76,6 +77,7 @@ export type MobileIdStartPayload = {
   txId?: string
   token?: string
   signType?: string
+  isBirth?: boolean
   qrBase64?: string
   deepLink?: string
   appLink?: string

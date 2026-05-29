@@ -17,6 +17,10 @@ declare global {
 }
 
 const DEFAULT_PROVIDER = 'omnione_cx'
+const DEFAULT_MOBILE_ID_ISSUE_URL =
+  'https://www.mobileid.go.kr/mip/hps/main.do'
+const MOBILE_ID_ISSUE_URL =
+  import.meta.env.VITE_MOBILE_ID_ISSUE_URL || DEFAULT_MOBILE_ID_ISSUE_URL
 
 export function LoginAdmin({
   onAuthenticated = (path: string) => window.location.assign(path)
@@ -39,6 +43,7 @@ export function LoginAdmin({
         provider: DEFAULT_PROVIDER,
         authFlow: 'app',
         requestType: 'WEB2APP',
+        isBirth: true,
         redirectUri: window.location.href
       })
 
@@ -155,7 +160,12 @@ export function LoginAdmin({
 
         <p className="mx-auto mt-8 text-center text-[16px] font-medium leading-normal tracking-normal sm:text-[19px] lg:absolute lg:left-[378px] lg:top-[640px] lg:mt-0 lg:w-[320px]">
           모바일 신분증이 없으신가요?{' '}
-          <a className="whitespace-nowrap font-bold text-[#ff7777] hover:text-[#e85656]" href="/submitInfo">
+          <a
+            className="whitespace-nowrap font-bold text-[#ff7777] hover:text-[#e85656]"
+            href={MOBILE_ID_ISSUE_URL}
+            rel="noreferrer"
+            target="_blank"
+          >
             발급하기
           </a>
         </p>
@@ -203,6 +213,7 @@ function MobileIdDialog({
         </div>
 
         <div className="px-6 py-7 text-center">
+          <div id="oacxDiv" className="mx-auto mb-5 min-h-[1px] w-full" />
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[22px] bg-[#f0f8ff]">
             <MobileIdMark />
           </div>
@@ -269,12 +280,21 @@ async function launchOacxModule(
   await loadScript(`${webBaseUrl}/oacx-vendor.js`)
   await loadScript(`${webBaseUrl}/oacx-ux.js`)
 
-  window.OACX?.LOAD_MODULE(
+  if (!document.getElementById('oacxDiv')) {
+    throw new Error('OmniOne CX 인증창 영역을 찾지 못했습니다.')
+  }
+
+  if (!window.OACX?.LOAD_MODULE) {
+    throw new Error('OmniOne CX 인증 모듈을 불러오지 못했습니다.')
+  }
+
+  window.OACX.LOAD_MODULE(
     payload.configUrl,
     {
       contentInfo: {
         signType: payload.signType || 'ENT_MID'
       },
+      isBirth: payload.isBirth ?? true,
       compareCI: false
     },
     onResult
@@ -293,15 +313,24 @@ function loadCss(href: string) {
 }
 
 function loadScript(src: string) {
-  if (document.querySelector(`script[src="${src}"]`)) {
+  const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`)
+
+  if (existingScript?.dataset.loaded === 'true') {
     return Promise.resolve()
+  }
+
+  if (existingScript) {
+    existingScript.remove()
   }
 
   return new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')
     script.src = src
-    script.defer = true
-    script.onload = () => resolve()
+    script.async = false
+    script.onload = () => {
+      script.dataset.loaded = 'true'
+      resolve()
+    }
     script.onerror = () => reject(new Error(`Failed to load ${src}`))
     document.head.appendChild(script)
   })
@@ -317,6 +346,10 @@ function toResultRecord(result: unknown) {
 
 function toErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError || error instanceof Error) {
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      return '백엔드 인증 API에 연결할 수 없습니다. backend 서버(localhost:3000)를 먼저 실행해 주세요.'
+    }
+
     return error.message || fallback
   }
 

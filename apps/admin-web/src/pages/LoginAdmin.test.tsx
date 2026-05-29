@@ -22,7 +22,11 @@ describe('LoginAdmin', () => {
     expect(screen.getByText('CamPass')).toBeInTheDocument()
     expect(screen.getByText(/입장부터 혜택까지/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /모바일 신분증 로그인/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /발급하기/ })).toHaveAttribute('href', '/submitInfo')
+    expect(screen.getByRole('link', { name: /발급하기/ })).toHaveAttribute(
+      'href',
+      'https://www.mobileid.go.kr/mip/hps/main.do'
+    )
+    expect(screen.getByRole('link', { name: /발급하기/ })).toHaveAttribute('target', '_blank')
   })
 
   it('starts an OmniOne CX auth request and closes without dev-login side effects', async () => {
