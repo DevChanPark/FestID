@@ -1,0 +1,47 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import { DManageAuth } from './DManageAuth'
+
+describe('DManageAuth', () => {
+  it('renders the authority management screen from Figma', () => {
+    render(<DManageAuth />)
+
+    expect(screen.getByRole('heading', { name: '권한 관리' })).toBeInTheDocument()
+    expect(screen.getByText('Day 1')).toBeInTheDocument()
+    expect(screen.getByText('요약')).toBeInTheDocument()
+    expect(screen.getByText('관리자')).toBeInTheDocument()
+    expect(screen.getAllByText('공동 관리자').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('스태프').length).toBeGreaterThan(0)
+    expect(screen.getByText('권한 승인 대기 중')).toBeInTheDocument()
+
+    expect(screen.getByRole('button', { name: '공동 관리자' })).toBeInTheDocument()
+    expect(screen.getByText('인원 : 2명')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '공동 관리자' }))
+    expect(screen.getByRole('listbox', { name: '역할 필터 선택' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('option', { name: '스태프' }))
+    expect(screen.getByRole('button', { name: '스태프' })).toBeInTheDocument()
+    expect(screen.getByText('인원 : 2명')).toBeInTheDocument()
+    expect(screen.getAllByPlaceholderText('검색창').length).toBeGreaterThan(0)
+    expect(screen.getByText('스태프 권한 요청 목록')).toBeInTheDocument()
+    expect(screen.getAllByText('연락처').length).toBeGreaterThan(0)
+    expect(screen.getByText('010-1234-5678')).toBeInTheDocument()
+    expect(screen.getByText('did:example:ef****78')).toBeInTheDocument()
+    expect(screen.getByText('did:example:re****34')).toBeInTheDocument()
+    expect(screen.queryByText('did:example:abcd1234')).not.toBeInTheDocument()
+    expect(screen.queryByText('did:example:req1234')).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: '상세 관리' })[0])
+    expect(screen.getByRole('button', { name: '역할 수정' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '권한 삭제' })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: '상세 관리' })[2])
+    expect(screen.getByRole('button', { name: '승인' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '거절' })).toBeInTheDocument()
+    expect(screen.getByText('권한 위임하기')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('이름을 입력하세요')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('학번을 입력하세요')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '위임하기' })).toBeInTheDocument()
+    expect(screen.queryByText('역할 선택')).not.toBeInTheDocument()
+    expect(screen.queryByText('소속 부스')).not.toBeInTheDocument()
+    expect(screen.queryByText('권한 범위')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '권한 관리' })).toHaveAttribute('aria-current', 'page')
+  })
+})
