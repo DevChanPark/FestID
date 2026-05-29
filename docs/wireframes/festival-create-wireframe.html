@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FestID 축제 생성 와이어프레임</title>
+  <style>
+    :root {
+      --ink: #202124;
+      --muted: #6f7278;
+      --line: #c9cdd3;
+      --soft: #f4f6f8;
+      --panel: #fff;
+      --accent: #2563eb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef1f5;
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 64px;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .layout {
+      margin-top: 22px;
+    }
+
+    .panel {
+      padding: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 0;
+      margin-bottom: 18px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .step {
+      position: relative;
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    .step::before {
+      content: attr(data-step);
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .step::after {
+      content: "";
+      position: absolute;
+      top: 17px;
+      left: calc(50% + 24px);
+      width: calc(100% - 48px);
+      height: 1px;
+      background: var(--line);
+    }
+
+    .step:last-child::after {
+      display: none;
+    }
+
+    .step.active {
+      color: var(--ink);
+    }
+
+    .step.active::before {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(240px, 1fr));
+      gap: 20px 22px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      color: #4d525b;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .input,
+    .textarea,
+    .select,
+    .upload {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .textarea {
+      min-height: 96px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 26px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    @media (max-width: 860px) {
+      header,
+      main {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .form-grid,
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .step::after {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">FestID Admin</div>
+    <div class="status">축제 생성</div>
+  </header>
+
+  <main>
+    <h1>새 축제 생성</h1>
+
+    <section class="layout" aria-label="축제 생성 화면">
+      <div class="steps" aria-label="진행 단계">
+        <div class="step active" data-step="1">기본 정보 입력</div>
+        <div class="step" data-step="2">패스 템플릿 설정</div>
+        <div class="step" data-step="3">스태프 권한 부여</div>
+        <div class="step" data-step="4">부스 정보 입력</div>
+      </div>
+
+      <article class="panel">
+        <h2>축제 정보</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label>축제명</label>
+            <div class="input"></div>
+          </div>
+          <div class="field">
+            <label>주최사</label>
+            <div class="input"></div>
+          </div>
+          <div class="field">
+            <label>운영 기간</label>
+            <div class="input"></div>
+          </div>
+          <div class="field">
+            <label>운영 장소</label>
+            <div class="input"></div>
+          </div>
+          <div class="field full">
+            <label>축제 설명</label>
+            <div class="textarea"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <a class="button primary" href="dashboard-wireframe.html">다음</a>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

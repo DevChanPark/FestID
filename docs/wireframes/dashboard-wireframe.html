@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FestID 관리자 대시보드 와이어프레임</title>
+  <style>
+    :root {
+      --ink: #202124;
+      --muted: #6f7278;
+      --line: #c9cdd3;
+      --soft: #f4f6f8;
+      --panel: #fff;
+      --accent: #2563eb;
+      --good: #0f8a5f;
+      --warn: #b15b00;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef1f5;
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .brand {
+      margin-bottom: 26px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .nav-label {
+      margin: 20px 0 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: 0 10px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: #343840;
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .nav-item.active {
+      border-color: var(--line);
+      background: var(--soft);
+      font-weight: 700;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 72px;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      color: #4d525b;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    select {
+      min-width: 180px;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .content {
+      padding: 28px;
+    }
+
+    .section {
+      margin-bottom: 22px;
+    }
+
+    .panel,
+    .metric,
+    .placeholder {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metrics.six {
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+    }
+
+    .metric {
+      min-height: 104px;
+      padding: 16px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 16px;
+      font-size: 26px;
+    }
+
+    .metric .state {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      margin-top: 14px;
+      padding: 0 10px;
+      border: 1px solid #acd7c8;
+      border-radius: 999px;
+      background: #f4fbf8;
+      color: var(--good);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .qr-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, .65fr);
+      gap: 16px;
+    }
+
+    .qr-grid.staff-wide {
+      grid-template-columns: 1fr;
+    }
+
+    .table {
+      display: grid;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: .75fr .9fr 1fr .75fr;
+      min-height: 42px;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .row:last-child {
+      border-bottom: 0;
+    }
+
+    .row.head {
+      background: var(--soft);
+      font-weight: 700;
+    }
+
+    .cell {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      border-right: 1px solid var(--line);
+    }
+
+    .cell:last-child {
+      border-right: 0;
+    }
+
+    .staff-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .staff-list.expanded {
+      grid-template-columns: repeat(3, minmax(220px, 1fr));
+    }
+
+    .staff {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 54px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--soft);
+      font-size: 12px;
+    }
+
+    .avatar {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .booth-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .booth-card {
+      min-height: 220px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .booth-thumb {
+      display: grid;
+      place-items: center;
+      min-height: 98px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(135deg, #f4f6f8 0%, #e9eef5 100%);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .booth-body {
+      padding: 14px;
+    }
+
+    .booth-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .booth-title strong {
+      font-size: 14px;
+    }
+
+    .booth-desc {
+      min-height: 42px;
+      color: #4d525b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .booth-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .qr-panel[hidden] {
+      display: none;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(260px, .8fr);
+      gap: 16px;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .mini-item {
+      min-height: 44px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--soft);
+      font-size: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .button.warning {
+      border-color: #f1cfaa;
+      background: #fff8ef;
+      color: var(--warn);
+    }
+
+    .placeholder {
+      min-height: 86px;
+      padding: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .settings {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 1040px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        display: none;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 18px;
+      }
+
+      .content {
+        padding: 18px;
+      }
+
+      .metrics,
+      .metrics.six,
+      .qr-grid,
+      .admin-grid,
+      .staff-list.expanded,
+      .booth-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand">FestID Admin</div>
+      <div class="nav-label">Dashboard</div>
+      <a class="nav-item" href="#">축제 현황 <span class="badge">별도 와프</span></a>
+      <a class="nav-item active" href="#">현장 QR 관리</a>
+      <a class="nav-item" href="#permission">권한 관리</a>
+      <a class="nav-item" href="#report">운영 리포트 <span class="badge">준비중</span></a>
+      <a class="nav-item" href="#settings">설정</a>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h1>관리자 대시보드</h1>
+          <p class="sub">현장 QR 처리 상태와 운영 권한을 관리합니다.</p>
+        </div>
+        <div class="toolbar">
+          <label for="qrMode">현장 QR 관리</label>
+          <select id="qrMode" aria-label="현장 QR 관리 유형 선택">
+            <option value="pub">주점 QR 관리</option>
+            <option value="performance">공연 QR 관리</option>
+          </select>
+        </div>
+      </header>
+
+      <section class="content">
+        <section class="section" aria-label="축제 현황">
+          <div class="placeholder">
+            <strong>축제 현황</strong><br>
+            축제 현황은 별도 와이어프레임 기준으로 구성되며, 이 화면에서는 메뉴 진입 지점만 표시합니다.
+          </div>
+        </section>
+
+        <section class="section qr-panel" id="pubPanel" aria-label="주점 QR 관리">
+          <div class="panel">
+            <h2>주점 QR 관리</h2>
+            <div class="metrics">
+              <div class="metric">
+                <span class="sub">주점 입장 승인 수</span>
+                <strong>--</strong>
+              </div>
+              <div class="metric">
+                <span class="sub">입장 실패 수</span>
+                <strong>--</strong>
+              </div>
+              <div class="metric">
+                <span class="sub">총 주점 개수</span>
+                <strong>--</strong>
+              </div>
+            </div>
+
+            <div class="qr-grid staff-wide">
+              <article>
+                <h3>담당 스태프</h3>
+                <div class="staff-list expanded">
+                  <div class="staff">
+                    <div class="avatar">S</div>
+                    <div>주점 입구 담당<br><span class="sub">QR 승인/실패 확인</span></div>
+                    <span class="badge">활성</span>
+                  </div>
+                  <div class="staff">
+                    <div class="avatar">S</div>
+                    <div>현장 운영 담당<br><span class="sub">입장 상태 전환</span></div>
+                    <span class="badge">대기</span>
+                  </div>
+                  <div class="staff">
+                    <div class="avatar">S</div>
+                    <div>주점 관리자<br><span class="sub">부스별 운영 확인</span></div>
+                    <span class="badge">활성</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="permission" aria-label="권한 관리">
+          <div class="panel">
+            <h2>권한 관리</h2>
+            <div class="admin-grid">
+              <article>
+                <h3>공동 관리자 목록 및 추가</h3>
+                <div class="mini-list">
+                  <div class="mini-item">공동 관리자 A · 전체 관리</div>
+                  <div class="mini-item">공동 관리자 B · 리포트/설정</div>
+                </div>
+                <div class="button-row">
+                  <a class="button primary" href="#">공동 관리자 추가</a>
+                </div>
+              </article>
+
+              <article>
+                <h3>스태프 관리</h3>
+                <div class="mini-list">
+                  <div class="mini-item">입장 스태프 · QR 처리</div>
+                  <div class="mini-item">현장 스태프 · 운영 상태 관리</div>
+                </div>
+                <div class="button-row">
+                  <a class="button" href="#">스태프 추가</a>
+                  <a class="button" href="#">스태프 권한 수정</a>
+                </div>
+              </article>
+
+              <article>
+                <h3>권한 위임</h3>
+                <div class="mini-item">특정 운영 권한을 공동 관리자 또는 스태프에게 위임합니다.</div>
+                <div class="button-row">
+                  <a class="button primary" href="#">권한 위임 설정</a>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="report" aria-label="운영 리포트">
+          <div class="placeholder">
+            <strong>운영 리포트</strong><br>
+            아직 구현하지 않는 영역입니다. 추후 입장 처리, 실패율, 스태프별 처리량 리포트를 연결합니다.
+          </div>
+        </section>
+
+        <section class="section" id="settings" aria-label="설정">
+          <div class="panel settings">
+            <div>
+              <h2>설정</h2>
+              <p class="sub">관리자 세션과 축제 기본 정보를 관리합니다.</p>
+            </div>
+            <div class="button-row">
+              <a class="button" href="festival-create-wireframe.html">축제 정보 수정</a>
+              <a class="button warning" href="start-wireframe.html">로그아웃</a>
+            </div>
+
+            <section aria-label="주점 목록">
+              <h3 style="margin-top: 20px;">주점 목록</h3>
+              <div class="booth-list">
+                <article class="booth-card">
+                  <div class="booth-thumb">주점 대표 이미지</div>
+                  <div class="booth-body">
+                    <div class="booth-title">
+                      <strong>청춘포차</strong>
+                      <span class="badge">운영중</span>
+                    </div>
+                    <p class="booth-desc">주점 입장 QR과 운영 상태를 확인하는 카드입니다.</p>
+                    <div class="booth-meta">
+                      <span>입장 승인 --</span>
+                      <span>부스 수정</span>
+                    </div>
+                  </div>
+                </article>
+                <article class="booth-card">
+                  <div class="booth-thumb">주점 대표 이미지</div>
+                  <div class="booth-body">
+                    <div class="booth-title">
+                      <strong>달빛주막</strong>
+                      <span class="badge">대기</span>
+                    </div>
+                    <p class="booth-desc">담당 스태프, QR 처리 상태, 운영 메모를 확인합니다.</p>
+                    <div class="booth-meta">
+                      <span>입장 승인 --</span>
+                      <span>부스 수정</span>
+                    </div>
+                  </div>
+                </article>
+                <article class="booth-card">
+                  <div class="booth-thumb">주점 대표 이미지</div>
+                  <div class="booth-body">
+                    <div class="booth-title">
+                      <strong>별밤비어</strong>
+                      <span class="badge">점검</span>
+                    </div>
+                    <p class="booth-desc">카드 클릭 시 추후 부스 수정 화면으로 연결됩니다.</p>
+                    <div class="booth-meta">
+                      <span>입장 승인 --</span>
+                      <span>부스 수정</span>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="section qr-panel" id="performancePanel" aria-label="공연 QR 관리" hidden>
+          <div class="panel">
+            <h2>공연 QR 관리</h2>
+            <div class="metrics six">
+              <div class="metric">
+                <span class="sub">공연 입장 승인 수</span>
+                <strong>--</strong>
+              </div>
+              <div class="metric">
+                <span class="sub">최대 수용 인원</span>
+                <strong>--</strong>
+              </div>
+              <div class="metric">
+                <span class="sub">현재 입장 인원</span>
+                <strong>--</strong>
+              </div>
+              <div class="metric">
+                <span class="sub">남은 입장 가능 인원</span>
+                <strong>--</strong>
+              </div>
+              <div class="metric">
+                <span class="sub">공연장 수용률</span>
+                <strong>--%</strong>
+              </div>
+              <div class="metric">
+                <span class="sub">입장 실패 수</span>
+                <strong>--</strong>
+              </div>
+            </div>
+
+            <div class="qr-grid">
+              <article>
+                <h3>QR 처리 로그</h3>
+                <div class="table">
+                  <div class="row head">
+                    <div class="cell">시간</div>
+                    <div class="cell">처리 결과</div>
+                    <div class="cell">공연/구역</div>
+                    <div class="cell">스태프</div>
+                  </div>
+                  <div class="row">
+                    <div class="cell">--:--</div>
+                    <div class="cell">승인</div>
+                    <div class="cell">메인 공연장</div>
+                    <div class="cell">담당자</div>
+                  </div>
+                  <div class="row">
+                    <div class="cell">--:--</div>
+                    <div class="cell">실패</div>
+                    <div class="cell">수용 인원 초과</div>
+                    <div class="cell">담당자</div>
+                  </div>
+                </div>
+              </article>
+
+              <article>
+                <h3>담당 스태프</h3>
+                <div class="staff-list">
+                  <div class="staff">
+                    <div class="avatar">S</div>
+                    <div>공연장 입구 담당<br><span class="sub">입장 승인 처리</span></div>
+                    <span class="badge">활성</span>
+                  </div>
+                  <div class="staff">
+                    <div class="avatar">S</div>
+                    <div>객석 관리 담당<br><span class="sub">수용률 모니터링</span></div>
+                    <span class="badge">활성</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const qrMode = document.querySelector("#qrMode");
+    const pubPanel = document.querySelector("#pubPanel");
+    const performancePanel = document.querySelector("#performancePanel");
+
+    qrMode.addEventListener("change", () => {
+      const isPerformance = qrMode.value === "performance";
+      pubPanel.hidden = isPerformance;
+      performancePanel.hidden = !isPerformance;
+    });
+  </script>
+</body>
+</html>
