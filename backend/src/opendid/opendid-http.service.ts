@@ -20,14 +20,18 @@ export class OpenDidHttpService {
     return this.request<T>('POST', baseUrl, path, body);
   }
 
+  get<T>(baseUrl: string, path: string): Promise<T> {
+    return this.request<T>('GET', baseUrl, path);
+  }
+
   private request<T>(
-    method: 'POST',
+    method: 'GET' | 'POST',
     baseUrl: string,
     path: string,
-    body: Record<string, unknown>,
+    body?: Record<string, unknown>,
   ): Promise<T> {
     const url = new URL(path, this.withTrailingSlash(baseUrl));
-    const payload = JSON.stringify(body);
+    const payload = body === undefined ? undefined : JSON.stringify(body);
     const transport = url.protocol === 'https:' ? httpsRequest : httpRequest;
 
     return new Promise<T>((resolve, reject) => {
@@ -37,8 +41,12 @@ export class OpenDidHttpService {
           method,
           headers: {
             Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload).toString(),
+            ...(payload
+              ? {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(payload).toString(),
+                }
+              : {}),
             ...(this.openDidConfigService.apiToken
               ? { Authorization: `Bearer ${this.openDidConfigService.apiToken}` }
               : {}),
@@ -103,7 +111,9 @@ export class OpenDidHttpService {
         );
       });
 
-      request.write(payload);
+      if (payload) {
+        request.write(payload);
+      }
       request.end();
     });
   }

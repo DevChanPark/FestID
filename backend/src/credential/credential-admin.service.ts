@@ -8,14 +8,18 @@ import { Prisma } from '@prisma/client';
 import { AdminAccessService } from '../access/admin-access.service';
 import { JwtUser } from '../common/types/jwt-user.type';
 import { PrismaService } from '../database/prisma.service';
+import { OpenDidCredentialProvider } from '../opendid/opendid-credential.provider';
 import { ListFestivalCredentialsQueryDto } from './dto/list-festival-credentials-query.dto';
 import { RevokeCredentialDto } from './dto/revoke-credential.dto';
+import { CredentialStatusService } from './credential-status.service';
 
 @Injectable()
 export class CredentialAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly adminAccessService: AdminAccessService,
+    private readonly openDidCredentialProvider: OpenDidCredentialProvider,
+    private readonly credentialStatusService: CredentialStatusService,
   ) {}
 
   async listFestivalCredentials(
@@ -74,6 +78,15 @@ export class CredentialAdminService {
 
     await this.ensureCredentialManager(user, credential);
 
+    const openDidRevokeResult =
+      credential.credentialProvider === 'opendid'
+        ? await this.openDidCredentialProvider.revokeCredential({
+            credentialId: credential.externalCredentialId,
+            credentialStatusId: credential.credentialStatusId,
+            vcJwt: credential.vcJwt,
+            reason: dto.reason,
+          })
+        : null;
     const claimsJson =
       credential.claimsJson && typeof credential.claimsJson === 'object'
         ? (credential.claimsJson as Prisma.JsonObject)
@@ -84,6 +97,8 @@ export class CredentialAdminService {
       data: {
         status: 'revoked',
         revokedAt: new Date(),
+        externalStatus: openDidRevokeResult?.externalStatus,
+        revokedTxId: openDidRevokeResult?.revokedTxId,
         claimsJson: {
           ...claimsJson,
           revokedReason: dto.reason,
@@ -92,6 +107,23 @@ export class CredentialAdminService {
     });
 
     return { credential: updatedCredential };
+  }
+
+  async syncCredentialStatus(user: JwtUser, credentialId: string) {
+    const credential = await this.prisma.credential.findUnique({
+      where: { id: credentialId },
+    });
+
+    if (!credential) {
+      throw new NotFoundException({
+        code: 'CREDENTIAL_NOT_FOUND',
+        message: 'Credential was not found.',
+      });
+    }
+
+    await this.ensureCredentialManager(user, credential);
+
+    return this.credentialStatusService.syncCredentialStatus(credential);
   }
 
   private async ensureCredentialManager(user: JwtUser, credential: {

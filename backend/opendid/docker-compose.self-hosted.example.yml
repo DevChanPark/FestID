@@ -1,0 +1,64 @@
+services:
+  opendid-issuer-db:
+    image: postgres:16.4
+    container_name: campass-opendid-issuer-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omn
+      POSTGRES_PASSWORD: omn
+      POSTGRES_DB: issuer
+    ports:
+      - "5431:5432"
+    volumes:
+      - opendid_issuer_pgdata:/var/lib/postgresql/data
+
+  opendid-verifier-db:
+    image: postgres:16.4
+    container_name: campass-opendid-verifier-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omn
+      POSTGRES_PASSWORD: omn
+      POSTGRES_DB: verifier
+    ports:
+      - "5432:5432"
+    volumes:
+      - opendid_verifier_pgdata:/var/lib/postgresql/data
+
+  opendid-issuer:
+    image: did-issuer-server
+    container_name: campass-opendid-issuer
+    depends_on:
+      - opendid-issuer-db
+    ports:
+      - "8091:8091"
+    volumes:
+      - opendid_issuer_config:/app/config
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  opendid-verifier:
+    image: did-verifier-server
+    container_name: campass-opendid-verifier
+    depends_on:
+      - opendid-verifier-db
+    ports:
+      - "8092:8092"
+    volumes:
+      - opendid_verifier_config:/app/config
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  opendid_issuer_config:
+    external: true
+    name: campass_opendid_issuer_config
+  opendid_verifier_config:
+    external: true
+    name: campass_opendid_verifier_config
+  opendid_issuer_pgdata:
+  opendid_verifier_pgdata:

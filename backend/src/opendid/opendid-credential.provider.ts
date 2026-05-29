@@ -4,6 +4,8 @@ import { OpenDidHttpService } from './opendid-http.service';
 import {
   OpenDidCredentialIssueInput,
   OpenDidCredentialIssueResult,
+  OpenDidCredentialRevokeInput,
+  OpenDidCredentialRevokeResult,
   OpenDidCredentialStatusInput,
   OpenDidCredentialStatusResult,
 } from './types';
@@ -22,13 +24,16 @@ export class OpenDidCredentialProvider {
       return null;
     }
 
+    this.requireCustomDirectIssueMode();
+
     const issuerBaseUrl = this.requireConfig(
       this.openDidConfigService.issuerBaseUrl,
       'OPENDID_ISSUER_BASE_URL',
     );
     const issuerDid =
       this.openDidConfigService.issuerDid ?? input.issuerDid;
-    const schemaId = this.openDidConfigService.getSchemaId(input.type);
+    const credentialConfig =
+      this.openDidConfigService.getCredentialConfig(input.type);
     const payload = {
       issuerDid,
       issuerKid: this.openDidConfigService.issuerKid,
@@ -37,7 +42,12 @@ export class OpenDidCredentialProvider {
       userId: input.userId,
       festivalId: input.festivalId,
       credentialType: input.type,
-      schemaId,
+      schemaId: credentialConfig.schemaId,
+      schemaName: credentialConfig.schemaName,
+      vcPlanId: credentialConfig.vcPlanId,
+      issueProfileId: credentialConfig.issueProfileId,
+      credentialDefinitionId: credentialConfig.credentialDefinitionId,
+      verifyPolicyId: credentialConfig.verifyPolicyId,
       claims: input.claims,
       expiresAt: input.expiresAt?.toISOString(),
     };
@@ -48,7 +58,7 @@ export class OpenDidCredentialProvider {
       payload,
     );
 
-    return this.toIssueResult(response, schemaId);
+    return this.toIssueResult(response, credentialConfig.schemaId);
   }
 
   async verifyCredentialStatus(
@@ -57,6 +67,8 @@ export class OpenDidCredentialProvider {
     if (!this.openDidConfigService.verificationEnabled) {
       return null;
     }
+
+    this.requireCustomStatusVerifyMode();
 
     const verifierBaseUrl = this.requireConfig(
       this.openDidConfigService.verifierBaseUrl,
@@ -73,6 +85,33 @@ export class OpenDidCredentialProvider {
     );
 
     return this.toStatusResult(response);
+  }
+
+  async revokeCredential(
+    input: OpenDidCredentialRevokeInput,
+  ): Promise<OpenDidCredentialRevokeResult | null> {
+    if (!this.openDidConfigService.credentialIssuanceEnabled) {
+      return null;
+    }
+
+    this.requireCustomDirectIssueMode();
+
+    const issuerBaseUrl = this.requireConfig(
+      this.openDidConfigService.issuerBaseUrl,
+      'OPENDID_ISSUER_BASE_URL',
+    );
+    const response = await this.openDidHttpService.post<Record<string, unknown>>(
+      issuerBaseUrl,
+      this.openDidConfigService.revokePath,
+      {
+        credentialId: input.credentialId,
+        credentialStatusId: input.credentialStatusId,
+        vcJwt: input.vcJwt,
+        reason: input.reason,
+      },
+    );
+
+    return this.toRevokeResult(response);
   }
 
   private toIssueResult(
@@ -154,6 +193,30 @@ export class OpenDidCredentialProvider {
     };
   }
 
+  private toRevokeResult(
+    response: Record<string, unknown>,
+  ): OpenDidCredentialRevokeResult {
+    const data = this.recordValue(response.data) ?? response;
+    const status =
+      this.stringValue(data.status) ??
+      this.stringValue(data.credentialStatus) ??
+      this.stringValue(data.result);
+
+    return {
+      revoked:
+        data.revoked === true ||
+        data.success === true ||
+        status === 'revoked' ||
+        status === 'REVOKED',
+      externalStatus: status,
+      revokedTxId:
+        this.stringValue(data.txId) ??
+        this.stringValue(data.transactionId) ??
+        this.stringValue(data.txHash),
+      raw: response,
+    };
+  }
+
   private requireConfig(value: string | undefined, key: string): string {
     if (!value) {
       throw new BadRequestException({
@@ -163,6 +226,30 @@ export class OpenDidCredentialProvider {
     }
 
     return value;
+  }
+
+  private requireCustomDirectIssueMode() {
+    if (this.openDidConfigService.credentialIssueMode === 'custom_direct') {
+      return;
+    }
+
+    throw new BadRequestException({
+      code: 'OPENDID_OFFICIAL_WALLET_FLOW_REQUIRED',
+      message:
+        'Official OpenDID issuer APIs require the holder wallet issuance protocol. Keep OPENDID_CREDENTIAL_ISSUANCE_ENABLED=false until the wallet flow is connected, or set OPENDID_CREDENTIAL_ISSUE_MODE=custom_direct only when using a compatible custom adapter endpoint.',
+    });
+  }
+
+  private requireCustomStatusVerifyMode() {
+    if (this.openDidConfigService.credentialVerifyMode === 'custom_status') {
+      return;
+    }
+
+    throw new BadRequestException({
+      code: 'OPENDID_OFFICIAL_VP_FLOW_REQUIRED',
+      message:
+        'Official OpenDID verifier APIs require encrypted VP verification payloads from the holder wallet. Keep OPENDID_VERIFICATION_ENABLED=false until the VP flow is connected, or set OPENDID_CREDENTIAL_VERIFY_MODE=custom_status only when using a compatible custom status adapter endpoint.',
+    });
   }
 
   private recordValue(value: unknown): Record<string, unknown> | undefined {

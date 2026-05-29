@@ -48,4 +48,12 @@ export class CredentialAdminController {
       dto,
     );
   }
+
+  @Post('credentials/:credentialId/sync-status')
+  syncCredentialStatus(
+    @CurrentUser() user: JwtUser,
+    @Param('credentialId') credentialId: string,
+  ) {
+    return this.credentialAdminService.syncCredentialStatus(user, credentialId);
+  }
 }
