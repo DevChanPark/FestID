@@ -23,6 +23,7 @@ npm install
 npm run db:up
 npm run db:deploy
 npm run prisma:generate
+npm run integration:check
 npm run build
 npm run start:dev
 ```
@@ -38,3 +39,6 @@ npm run start:dev
 
 See `docs/local-api-flow.md` for the local API flow.
 See `docs/mobile-id-provider-integration.md` for the SDK integration contract.
+See `docs/frontend-integration-guide.md` for admin web/mobile app API contracts.
+See `docs/opendid-admin-console-setup.md` for OpenDID console setup.
+See `docs/e2e-test-checklist.md` for the end-to-end demo checklist.

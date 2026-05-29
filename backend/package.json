@@ -24,6 +24,9 @@
     "opendid:restart": "bash scripts/opendid/compose.sh restart",
     "opendid:logs": "bash scripts/opendid/compose.sh logs",
     "opendid:ps": "bash scripts/opendid/compose.sh ps",
+    "integration:check": "node scripts/integration/check-readiness.js",
+    "integration:check:strict": "node scripts/integration/check-readiness.js --strict",
+    "integration:check:probe": "node scripts/integration/check-readiness.js --probe",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"

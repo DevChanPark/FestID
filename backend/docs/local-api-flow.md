@@ -9,10 +9,19 @@ npm install
 npm run db:up
 npm run db:deploy
 npm run prisma:generate
+npm run integration:check
 npm run start:dev
 ```
 
 If Docker is not installed, install Docker Desktop first and rerun `npm run db:up`.
+
+Use these checks before frontend or wallet integration:
+
+```bash
+npm run integration:check
+npm run integration:check:probe
+npm run opendid:inspect-api-docs
+```
 
 ## 2. Connect Real Mobile ID Provider
 
