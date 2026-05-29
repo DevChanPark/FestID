@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPassTemplate, listPassTemplates, updatePassTemplate } from '../lib/adminApi'
+import { resolveActiveFestival } from '../lib/activeFestival'
+import type { PassTemplate } from '../types/api'
 
 const passTemplates = {
   student: {
     title: '재학생 패스',
+    backendType: 'student',
     conditions: [
       { label: '휴학 여부', enabled: true },
       { label: '졸업 여부', enabled: false },
@@ -10,8 +14,9 @@ const passTemplates = {
       { label: '성인 인증 여부', enabled: false }
     ]
   },
-  guest: {
+  entry: {
     title: '외부인 패스',
+    backendType: 'entry',
     conditions: [
       { label: '성인 인증 여부', enabled: false },
       { label: '초대 여부', enabled: false }
@@ -19,6 +24,7 @@ const passTemplates = {
   },
   staff: {
     title: '스태프 패스',
+    backendType: 'staff',
     conditions: [
       { label: '재학 여부', enabled: true },
       { label: '증명 서류 형식 제한', enabled: true }
@@ -34,13 +40,53 @@ function getSelectedPassType(): PassType {
   }
 
   const passType = new URLSearchParams(window.location.search).get('pass')
-  return passType === 'guest' || passType === 'staff' ? passType : 'student'
+  if (passType === 'guest') {
+    return 'entry'
+  }
+
+  return passType === 'entry' || passType === 'staff' ? passType : 'student'
 }
 
 export function SetPass() {
   const selectedPassType = getSelectedPassType()
   const selectedPass = passTemplates[selectedPassType]
   const [conditions, setConditions] = useState(selectedPass.conditions)
+  const [activeFestivalId, setActiveFestivalId] = useState('')
+  const [existingTemplate, setExistingTemplate] = useState<PassTemplate | null>(null)
+  const [statusMessage, setStatusMessage] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    let ignore = false
+
+    resolveActiveFestival()
+      .then(async ({ festivalId }) => {
+        const templates = await listPassTemplates(festivalId)
+        const template = templates.find((item) => item.type === selectedPass.backendType)
+
+        if (ignore) {
+          return
+        }
+
+        setActiveFestivalId(festivalId)
+        setExistingTemplate(template ?? null)
+        setStatusMessage(template ? '백엔드 저장 템플릿을 불러왔습니다.' : '아직 저장되지 않은 패스입니다.')
+
+        const savedConditions = parseConditions(template?.verificationRule)
+        if (savedConditions.length > 0) {
+          setConditions(savedConditions)
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setStatusMessage(error instanceof Error ? error.message : '패스 템플릿을 불러오지 못했습니다.')
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [selectedPass.backendType])
 
   const toggleCondition = (label: string) => {
     setConditions((currentConditions) =>
@@ -48,6 +94,38 @@ export function SetPass() {
         condition.label === label ? { ...condition, enabled: !condition.enabled } : condition
       )
     )
+  }
+
+  const handleSave = async () => {
+    if (!activeFestivalId) {
+      setStatusMessage('축제 정보를 먼저 생성하거나 불러와 주세요.')
+      return
+    }
+
+    setIsSaving(true)
+    setStatusMessage('')
+
+    try {
+      const payload = {
+        type: selectedPass.backendType,
+        name: selectedPass.title,
+        enabled: true,
+        verificationRule: {
+          conditions,
+          source: 'admin_web'
+        }
+      }
+      const template = existingTemplate
+        ? await updatePassTemplate(existingTemplate.id, payload)
+        : await createPassTemplate(activeFestivalId, payload)
+
+      setExistingTemplate(template)
+      setStatusMessage('패스 템플릿이 백엔드에 저장되었습니다.')
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '패스 템플릿 저장에 실패했습니다.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -69,6 +147,9 @@ export function SetPass() {
           </h2>
           <p className="mt-1 break-keep text-[15px] leading-relaxed text-[#313131]">
             패스 설정을 수정합니다.
+          </p>
+          <p className="mt-2 break-keep text-[14px] font-semibold text-[#5b6775]">
+            {statusMessage || '백엔드 패스 템플릿과 동기화합니다.'}
           </p>
         </header>
 
@@ -119,13 +200,29 @@ export function SetPass() {
           </a>
           <button
             type="button"
+            disabled={isSaving}
+            onClick={handleSave}
             className="flex h-12 items-center justify-center rounded-[15px] bg-[#0097ce] px-8 text-[17px] font-medium text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40"
           >
-            패스 수정 완료
+            {isSaving ? '저장 중' : '패스 수정 완료'}
           </button>
         </div>
       </section>
     </main>
+  )
+}
+
+function parseConditions(verificationRule: PassTemplate['verificationRule'] | undefined) {
+  if (!verificationRule || !Array.isArray(verificationRule.conditions)) {
+    return []
+  }
+
+  return verificationRule.conditions.filter(
+    (condition): condition is { label: string; enabled: boolean } =>
+      typeof condition === 'object' &&
+      condition !== null &&
+      typeof (condition as { label?: unknown }).label === 'string' &&
+      typeof (condition as { enabled?: unknown }).enabled === 'boolean'
   )
 }
 

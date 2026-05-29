@@ -58,8 +58,10 @@ export async function verifyMobileIdAuth(request: VerifyMobileIdAuthRequest) {
   return response
 }
 
-export function getCurrentUser() {
-  return apiRequest<CamPassUser>('/auth/me')
+export async function getCurrentUser() {
+  const response = await apiRequest<{ user: CamPassUser }>('/auth/me')
+
+  return response.user
 }
 
 export async function logout() {

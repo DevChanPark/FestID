@@ -56,9 +56,9 @@ export function DSetting() {
       try {
         await updateFestival(savedFestivalInfo.backendId, {
           name: savedFestivalInfo.name,
-          organizer: savedFestivalInfo.host,
-          startsAt: savedFestivalInfo.startDate,
-          endsAt: savedFestivalInfo.endDate,
+          schoolName: savedFestivalInfo.host,
+          startDate: savedFestivalInfo.startDate,
+          endDate: savedFestivalInfo.endDate,
           location: savedFestivalInfo.place,
           description: savedFestivalInfo.description
         })

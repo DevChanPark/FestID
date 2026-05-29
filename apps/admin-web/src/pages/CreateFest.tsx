@@ -1,13 +1,14 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { FestStepProgress } from '../components/FestStepProgress'
-import { createFestival } from '../lib/adminApi'
+import { createFestival, uploadFile } from '../lib/adminApi'
+import { ApiError } from '../lib/api'
 import { getAccessToken } from '../lib/auth'
 import { isPreviewableImage, readFileAsDataUrl } from '../lib/filePreview'
 import { DEFAULT_FESTIVAL_INFO, saveFestivalInfo } from '../lib/localState'
 
 const festivalFields = [
   { id: 'festival-name', name: 'name', label: '축제명', placeholder: '축제명을 입력하세요 ...' },
-  { id: 'festival-host', name: 'host', label: '주최사', placeholder: '주최사를 입력하세요 ...' },
+  { id: 'festival-host', name: 'host', label: '학교명', placeholder: '학교명을 입력하세요 ...' },
   { id: 'festival-place', name: 'place', label: '운영 장소', placeholder: '운영 장소를 입력하세요 ...' }
 ]
 
@@ -20,11 +21,15 @@ export function CreateFest({
 }) {
   const [imageName, setImageName] = useState('')
   const [imagePreviewUrl, setImagePreviewUrl] = useState('')
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
 
     if (!file) {
+      setSelectedImage(null)
       setImageName('')
       setImagePreviewUrl('')
       return
@@ -33,17 +38,25 @@ export function CreateFest({
     if (!allowedImageTypes.includes(file.type)) {
       window.alert('PDF, JPG, PNG 파일만 업로드할 수 있습니다.')
       event.target.value = ''
+      setSelectedImage(null)
       setImageName('')
       setImagePreviewUrl('')
       return
     }
 
+    setSelectedImage(file)
     setImageName(file.name)
     setImagePreviewUrl(isPreviewableImage(file) ? await readFileAsDataUrl(file) : '')
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setErrorMessage('')
+
+    if (!getAccessToken()) {
+      setErrorMessage('관리자 로그인이 필요합니다.')
+      return
+    }
 
     const formData = new FormData(event.currentTarget)
 
@@ -59,27 +72,33 @@ export function CreateFest({
       imagePreviewUrl
     })
 
-    if (getAccessToken()) {
-      try {
-        const createdFestival = await createFestival({
-          name: festivalInfo.name,
-          organizer: festivalInfo.host,
-          startsAt: festivalInfo.startDate,
-          endsAt: festivalInfo.endDate,
-          location: festivalInfo.place,
-          description: festivalInfo.description
-        })
+    setIsSubmitting(true)
 
-        saveFestivalInfo({
-          ...festivalInfo,
-          backendId: createdFestival.id
-        })
-      } catch (error) {
-        console.warn('Festival was saved locally, but backend sync failed.', error)
-      }
+    try {
+      const uploadedImage = selectedImage ? await uploadFile('festival-image', selectedImage) : null
+      const createdFestival = await createFestival({
+        name: festivalInfo.name,
+        schoolName: festivalInfo.host,
+        startDate: festivalInfo.startDate,
+        endDate: festivalInfo.endDate,
+        location: festivalInfo.place,
+        description: festivalInfo.description,
+        imageUrl: uploadedImage?.fileUrl,
+        visibility: 'public',
+        status: 'active'
+      })
+
+      saveFestivalInfo({
+        ...festivalInfo,
+        backendId: createdFestival.id
+      })
+
+      onCreated('/managePass')
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, '축제 생성에 실패했습니다.'))
+    } finally {
+      setIsSubmitting(false)
     }
-
-    onCreated('/managePass')
   }
 
   return (
@@ -214,11 +233,25 @@ export function CreateFest({
         <button
           type="submit"
           form="create-fest-form"
-          className="mx-auto mt-8 flex h-12 w-full max-w-[302px] items-center justify-center rounded-[15px] bg-[#0097ce] px-8 text-[17px] font-medium text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40"
+          disabled={isSubmitting}
+          className="mx-auto mt-8 flex h-12 w-full max-w-[302px] items-center justify-center rounded-[15px] bg-[#0097ce] px-8 text-[17px] font-medium text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40 disabled:cursor-wait disabled:opacity-60"
         >
-          다음
+          {isSubmitting ? '생성 중' : '다음'}
         </button>
+        {errorMessage ? (
+          <p className="mt-4 break-keep text-center text-[14px] font-semibold leading-6 text-[#e24a4a]">
+            {errorMessage}
+          </p>
+        ) : null}
       </section>
     </main>
   )
+}
+
+function toErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError || error instanceof Error) {
+    return error.message || fallback
+  }
+
+  return fallback
 }

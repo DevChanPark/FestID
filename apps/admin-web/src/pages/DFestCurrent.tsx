@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import {
   AdminDashboardLayout,
@@ -12,6 +12,9 @@ import {
   EntryMetricIcon,
   GroupMetricIcon
 } from '../components/AdminDashboardLayout'
+import { getReportSummary } from '../lib/adminApi'
+import { resolveActiveFestival } from '../lib/activeFestival'
+import type { ReportSummary } from '../types/api'
 
 const dayStats: Record<DashboardDay, {
   metrics: Array<{ label: string; value: string; icon: ReactNode }>
@@ -50,14 +53,47 @@ const chartLabels = ['00시', '03시', '06시', '09시', '12시', '15시', '18�
 
 export function DFestCurrent() {
   const [selectedDay, setSelectedDay] = useState<DashboardDay>('Day 1')
-  const currentDay = dayStats[selectedDay]
+  const [summary, setSummary] = useState<ReportSummary | null>(null)
+  const [statusMessage, setStatusMessage] = useState('')
+  const currentDay = {
+    ...dayStats[selectedDay],
+    metrics: summary ? buildCurrentMetrics(summary) : dayStats[selectedDay].metrics,
+    chartValues: summary?.hourlyScanCount?.length ? summary.hourlyScanCount.slice(-9).map((item) => item.count) : dayStats[selectedDay].chartValues
+  }
+
+  useEffect(() => {
+    let ignore = false
+
+    resolveActiveFestival()
+      .then(({ festivalId }) => getReportSummary(festivalId))
+      .then((nextSummary) => {
+        if (!ignore) {
+          setSummary(nextSummary)
+          setStatusMessage('백엔드 운영 현황을 불러왔습니다.')
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setStatusMessage(error instanceof Error ? error.message : '운영 현황을 불러오지 못했습니다.')
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   return (
     <AdminDashboardLayout activeSection="current">
       <DashboardContent>
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-5">
-            <h2 className="text-[31px] font-bold leading-tight">축제현황</h2>
+            <div>
+              <h2 className="text-[31px] font-bold leading-tight">축제현황</h2>
+              {statusMessage ? (
+                <p className="mt-2 break-keep text-[14px] font-semibold text-[#5b6775]">{statusMessage}</p>
+              ) : null}
+            </div>
             <span className="rounded-[10px] bg-[#ddf8eb] px-4 py-2 text-[17px] font-semibold text-[#28b36e]">
               진행중
             </span>
@@ -87,6 +123,15 @@ export function DFestCurrent() {
       </DashboardContent>
     </AdminDashboardLayout>
   )
+}
+
+function buildCurrentMetrics(summary: ReportSummary) {
+  return [
+    { label: '전체 부스 방문수', value: String(summary.boothUsageCount ?? 0), icon: <BoothMetricIcon /> },
+    { label: '총 현장 입장 수', value: String(summary.entryProcessedCount ?? 0), icon: <EntryMetricIcon /> },
+    { label: '전체 참여자 수', value: String(summary.totalPassIssuedCount ?? 0), icon: <GroupMetricIcon /> },
+    { label: '체험자 완료 수', value: String(summary.eventParticipationCount ?? 0), icon: <CheckMetricIcon /> }
+  ]
 }
 
 function LineChart({ values }: { values: number[] }) {

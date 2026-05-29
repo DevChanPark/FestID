@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import {
   AdminDashboardLayout,
@@ -8,6 +8,9 @@ import {
   type DashboardDay,
   DashboardMetricCard
 } from '../components/AdminDashboardLayout'
+import { importBoothsCsv, listBooths } from '../lib/adminApi'
+import { resolveActiveFestival } from '../lib/activeFestival'
+import type { Booth } from '../types/api'
 
 const boothCardClassNames = [
   'bg-[linear-gradient(180deg,rgba(8,33,55,0.12),rgba(8,33,55,0.76)),radial-gradient(circle_at_65%_10%,rgba(255,217,139,0.85),transparent_16%),linear-gradient(135deg,#153a5b,#72532c_52%,#171717)]',
@@ -55,7 +58,91 @@ const boothDayData: Record<DashboardDay, {
 
 export function DManageBooth() {
   const [selectedDay, setSelectedDay] = useState<DashboardDay>('Day 1')
+  const [activeFestivalId, setActiveFestivalId] = useState('')
+  const [booths, setBooths] = useState<Booth[]>([])
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [statusMessage, setStatusMessage] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
   const currentDay = boothDayData[selectedDay]
+  const displayBooths: Array<{
+    id: string
+    name: string
+    description: string
+    imageLabel: string
+    className: string
+    posterUrl?: string
+  }> = booths.length > 0
+    ? booths.map((booth, index) => ({
+        id: booth.id,
+        name: booth.name,
+        description: [booth.location, booth.description].filter(Boolean).join('\n') || booth.category,
+        imageLabel: booth.posterUrl ? '' : booth.name,
+        posterUrl: booth.posterUrl,
+        className: boothCardClassNames[index % boothCardClassNames.length]
+      }))
+    : currentDay.booths.map((booth) => ({ ...booth }))
+  const summaryStats = booths.length > 0
+    ? [
+        { label: '등록 예정 부스 수', value: String(booths.length), icon: <CalendarMetricIcon /> },
+        { label: '이미지 매칭 완료', value: String(booths.filter((booth) => booth.posterUrl).length), icon: <CheckMetricIcon /> },
+        { label: '오류 항목', value: '0', icon: <WarningMetricIcon /> }
+      ]
+    : currentDay.summaryStats
+
+  const refreshBooths = async (festivalId: string) => {
+    const items = await listBooths(festivalId)
+    setBooths(items)
+    setStatusMessage(items.length > 0 ? `백엔드 부스 ${items.length}개를 불러왔습니다.` : '등록된 부스가 없습니다.')
+  }
+
+  useEffect(() => {
+    let ignore = false
+
+    resolveActiveFestival()
+      .then(async ({ festivalId }) => {
+        if (!ignore) {
+          setActiveFestivalId(festivalId)
+        }
+        const items = await listBooths(festivalId)
+        if (!ignore) {
+          setBooths(items)
+          setStatusMessage(items.length > 0 ? `백엔드 부스 ${items.length}개를 불러왔습니다.` : '등록된 부스가 없습니다.')
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setStatusMessage(error instanceof Error ? error.message : '부스 목록을 불러오지 못했습니다.')
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  const handleUpload = async () => {
+    if (!activeFestivalId) {
+      setStatusMessage('축제 정보를 먼저 생성하거나 불러와 주세요.')
+      return
+    }
+
+    if (!selectedFile) {
+      setStatusMessage('업로드할 CSV 파일을 선택해 주세요.')
+      return
+    }
+
+    setIsUploading(true)
+
+    try {
+      await importBoothsCsv(activeFestivalId, selectedFile, { upsert: true })
+      await refreshBooths(activeFestivalId)
+      setStatusMessage('부스 CSV가 백엔드에 반영되었습니다.')
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '부스 CSV 업로드에 실패했습니다.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   return (
     <AdminDashboardLayout activeSection="booth">
@@ -67,8 +154,11 @@ export function DManageBooth() {
 
         <section className="rounded-[10px] bg-white px-6 py-6 shadow-[7px_9px_30px_rgba(0,0,0,0.08)]">
           <h3 className="text-[21px] font-semibold">상태 요약</h3>
+          {statusMessage ? (
+            <p className="mt-2 break-keep text-[14px] font-semibold text-[#5b6775]">{statusMessage}</p>
+          ) : null}
           <div className="mt-6 grid gap-5 lg:grid-cols-3">
-            {currentDay.summaryStats.map((stat) => (
+            {summaryStats.map((stat) => (
               <DashboardMetricCard key={stat.label} {...stat} />
             ))}
           </div>
@@ -82,9 +172,9 @@ export function DManageBooth() {
               업로드 규칙
             </p>
             <p className="mt-2 break-keep text-[14px] font-medium leading-relaxed text-[#4b5563]">
-              CSV 파일과 이미지 폴더를 함께 업로드해 주세요.
+              CSV 파일을 업로드해 주세요. 포스터 이미지는 poster_url 또는 poster_filename 기준으로 매칭합니다.
               <br />
-              파일명은 부스명 기준으로 정리합니다.
+              이미지 파일 자체는 CSV에 넣지 않고 별도 업로드 URL을 사용합니다.
             </p>
           </div>
 
@@ -101,20 +191,27 @@ export function DManageBooth() {
 
             <div>
               <label className="flex min-h-[173px] cursor-pointer flex-col items-center justify-center rounded-[10px] border border-dashed border-[#72a7ff] bg-[#f8fbff] px-6 text-center transition hover:border-[#2f80ff] hover:bg-[#f1f7ff]">
-                <input className="sr-only" type="file" accept=".zip,application/zip" />
+                <input
+                  className="sr-only"
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                />
                 <span className="flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[#eaf2ff] text-[#2f80ff]">
                   <UploadIcon />
                 </span>
-                <span className="mt-4 text-[21px] font-semibold">ZIP 파일 선택</span>
+                <span className="mt-4 text-[21px] font-semibold">CSV 파일 선택</span>
                 <span className="mt-3 text-[13px] font-medium text-[#6b7280]">
-                  파일을 끌어오거나 클릭해서 업로드
+                  {selectedFile ? selectedFile.name : '파일을 끌어오거나 클릭해서 업로드'}
                 </span>
               </label>
               <button
                 type="button"
+                disabled={isUploading}
+                onClick={handleUpload}
                 className="ml-auto mt-5 flex h-[46px] w-[150px] items-center justify-center rounded-[10px] bg-[#0097ce] text-[17px] font-semibold text-white shadow-[0_6px_16px_rgba(0,151,206,0.24)] transition hover:bg-[#0087b8]"
               >
-                업로드
+                {isUploading ? '업로드 중' : '업로드'}
               </button>
             </div>
           </div>
@@ -123,7 +220,7 @@ export function DManageBooth() {
         <section className="mt-5 rounded-[10px] bg-white px-6 py-6 shadow-[7px_9px_30px_rgba(0,0,0,0.08)]">
           <h3 className="text-[21px] font-semibold">부스 목록</h3>
           <div className="mt-5 grid gap-6 lg:grid-cols-2">
-            {currentDay.booths.map((booth) => (
+            {displayBooths.map((booth) => (
               <article
                 key={booth.id}
                 className="overflow-hidden rounded-[10px] border border-[#e1e1e1] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
@@ -131,6 +228,7 @@ export function DManageBooth() {
                 <div
                   aria-label={`${booth.name} 이미지`}
                   className={`flex h-[190px] items-center justify-center bg-cover bg-center px-6 text-center text-[30px] font-bold tracking-[0.08em] text-[#ffd46b] ${booth.className}`}
+                  style={booth.posterUrl ? { backgroundImage: `linear-gradient(180deg,rgba(8,33,55,0.12),rgba(8,33,55,0.62)),url(${booth.posterUrl})` } : undefined}
                 >
                   {booth.imageLabel}
                 </div>

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { getMyAdminProfile } from '../lib/adminApi'
 import { getSubmittedAdminInfo } from '../lib/localState'
+import type { AdminProfile } from '../types/api'
 
 const steps = [
   '관리자 검토가 완료되면 승인 결과를 안내드립니다.',
@@ -14,20 +16,50 @@ export function WaitVC({
   onAutoRedirect?: (path: string) => void
 }) {
   const submittedAdminInfo = getSubmittedAdminInfo()
+  const [profile, setProfile] = useState<AdminProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+  const proofStatus = profile?.proofStatus ?? 'pending'
+  const statusLabel =
+    proofStatus === 'approved' ? '승인 완료' : proofStatus === 'rejected' ? '반려' : '승인 대기 중'
   const submittedInfo = [
-    ['이름', submittedAdminInfo.name],
-    ['이메일', submittedAdminInfo.email],
-    ['직책', submittedAdminInfo.role],
-    ['소속 기관', submittedAdminInfo.organization],
+    ['학교명', profile?.schoolName || submittedAdminInfo.schoolName],
+    ['소속 기관', profile?.organizationName || submittedAdminInfo.organizationName],
+    ['부서', profile?.department || submittedAdminInfo.department],
+    ['직책', profile?.position || submittedAdminInfo.position],
+    ['담당 역할', submittedAdminInfo.role],
     ['제출 자료', submittedAdminInfo.proofFileName]
   ]
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      onAutoRedirect('/createFest')
-    }, 5000)
+    let isMounted = true
 
-    return () => window.clearTimeout(timer)
+    getMyAdminProfile()
+      .then((nextProfile) => {
+        if (!isMounted) {
+          return
+        }
+
+        setProfile(nextProfile)
+
+        if (nextProfile?.proofStatus === 'approved') {
+          onAutoRedirect('/createFest')
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setErrorMessage(error instanceof Error ? error.message : '관리자 승인 상태를 불러오지 못했습니다.')
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
   }, [onAutoRedirect])
 
   return (
@@ -48,13 +80,14 @@ export function WaitVC({
             관리자 VC 발급 승인 대기
           </h2>
           <p className="mt-1 break-keep text-[15px] leading-relaxed text-[#313131]">
-            검토 완료 시 적어주신 연락처로 안내 결과 메일이 발송될 예정입니다.
+            승인 완료 시 관리자 VC가 발급되고 축제 생성 화면으로 이동합니다.
           </p>
         </header>
 
         <div className="mt-14 grid items-center gap-10 lg:grid-cols-[300px_1fr] lg:gap-[62px] lg:px-[40px]">
           <section className="flex flex-col items-center text-center" aria-label="제출 완료 상태">
             <h3 className="text-[31px] font-bold leading-none tracking-normal">제출 완료!</h3>
+            <p className="mt-3 text-[18px] font-bold text-[#0097ce]">{statusLabel}</p>
             <div className="mt-8 flex h-[166px] w-[166px] items-center justify-center rounded-full bg-[#35e014]">
               <span
                 className="h-[58px] w-[94px] rotate-[-45deg] border-b-[20px] border-l-[20px] border-white"
@@ -65,6 +98,12 @@ export function WaitVC({
 
           <section className="rounded-[15px] border border-[#e0e0e0] bg-white px-8 py-8 lg:min-h-[230px] lg:w-[530px]">
             <h3 className="text-[31px] font-bold leading-none tracking-normal">제출 정보</h3>
+            {isLoading ? (
+              <p className="mt-5 text-[15px] font-semibold text-[#5f6b7a]">승인 상태를 확인하는 중입니다.</p>
+            ) : null}
+            {errorMessage ? (
+              <p className="mt-5 break-keep text-[15px] font-semibold text-[#e24a4a]">{errorMessage}</p>
+            ) : null}
             <dl className="mt-8 grid gap-y-5 text-[15px] font-bold leading-5 sm:grid-cols-2">
               {submittedInfo.map(([label, value]) => (
                 <div key={label} className="flex">

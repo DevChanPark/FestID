@@ -9,25 +9,34 @@ import type {
   CreateStaffInviteRequest,
   Festival,
   PassTemplate,
+  AdminProfileListResponse,
   ReportListQuery,
   ReportSummary,
+  ScanReport,
   StaffInvite,
-  StaffRequest
+  StaffRequest,
+  UsageReport
 } from '../types/api'
 
-export function createAdminProfile(request: CreateAdminProfileRequest) {
-  return apiRequest<AdminProfile>('/admin/profile', {
+export async function createAdminProfile(request: CreateAdminProfileRequest) {
+  const response = await apiRequest<{ profile: AdminProfile }>('/admin/profile', {
     method: 'POST',
     body: request
   })
+
+  return response.profile
 }
 
-export function getMyAdminProfile() {
-  return apiRequest<AdminProfile>('/admin/profile/me')
+export async function getMyAdminProfile() {
+  const response = await apiRequest<{ profile: AdminProfile | null }>('/admin/profile/me')
+
+  return response.profile
 }
 
-export function listAdminProfiles(query: AdminProfileListQuery = {}) {
-  return apiRequest<AdminProfile[]>(`/admin/profiles${toQueryString(query)}`)
+export async function listAdminProfiles(query: AdminProfileListQuery = {}) {
+  const response = await apiRequest<AdminProfileListResponse>(`/admin/profiles${toQueryString(query)}`)
+
+  return response.profiles
 }
 
 export function updateAdminProofStatus(
@@ -38,61 +47,79 @@ export function updateAdminProofStatus(
     rejectionReason?: string
   }
 ) {
-  return apiRequest<AdminProfile>(`/admin/profiles/${profileId}/proof-status`, {
+  return apiRequest<{ profile: AdminProfile }>(`/admin/profiles/${profileId}/proof-status`, {
     method: 'PATCH',
     body: request
-  })
+  }).then((response) => response.profile)
 }
 
-export function createFestival(request: CreateFestivalRequest) {
-  return apiRequest<Festival>('/festivals', {
+export async function createFestival(request: CreateFestivalRequest) {
+  const response = await apiRequest<{ festival: Festival }>('/festivals', {
     method: 'POST',
     body: request
   })
+
+  return response.festival
 }
 
-export function listFestivals() {
-  return apiRequest<Festival[]>('/festivals')
+export async function listFestivals() {
+  const response = await apiRequest<{ festivals: Festival[] }>('/festivals')
+
+  return response.festivals
 }
 
-export function listMyFestivals() {
-  return apiRequest<Festival[]>('/festivals/my')
+export async function listMyFestivals() {
+  const response = await apiRequest<{ festivals: Festival[] }>('/festivals/my')
+
+  return response.festivals
 }
 
-export function getFestival(festivalId: string) {
-  return apiRequest<Festival>(`/festivals/${festivalId}`)
+export async function getFestival(festivalId: string) {
+  const response = await apiRequest<{ festival: Festival }>(`/festivals/${festivalId}`)
+
+  return response.festival
 }
 
-export function updateFestival(festivalId: string, request: Partial<CreateFestivalRequest>) {
-  return apiRequest<Festival>(`/festivals/${festivalId}`, {
+export async function updateFestival(festivalId: string, request: Partial<CreateFestivalRequest>) {
+  const response = await apiRequest<{ festival: Festival }>(`/festivals/${festivalId}`, {
     method: 'PATCH',
     body: request
   })
+
+  return response.festival
 }
 
-export function createPassTemplate(festivalId: string, request: CreatePassTemplateRequest) {
-  return apiRequest<PassTemplate>(`/festivals/${festivalId}/pass-templates`, {
+export async function createPassTemplate(festivalId: string, request: CreatePassTemplateRequest) {
+  const response = await apiRequest<{ template: PassTemplate }>(`/festivals/${festivalId}/pass-templates`, {
     method: 'POST',
     body: request
   })
+
+  return response.template
 }
 
-export function listPassTemplates(festivalId: string) {
-  return apiRequest<PassTemplate[]>(`/festivals/${festivalId}/pass-templates`)
+export async function listPassTemplates(festivalId: string) {
+  const response = await apiRequest<{ templates: PassTemplate[] }>(`/festivals/${festivalId}/pass-templates`)
+
+  return response.templates
 }
 
-export function updatePassTemplate(templateId: string, request: Partial<CreatePassTemplateRequest>) {
-  return apiRequest<PassTemplate>(`/pass-templates/${templateId}`, {
+export async function updatePassTemplate(templateId: string, request: Partial<CreatePassTemplateRequest>) {
+  const response = await apiRequest<{ template: PassTemplate }>(`/pass-templates/${templateId}`, {
     method: 'PATCH',
     body: request
   })
+
+  return response.template
 }
 
-export function createBooth(festivalId: string, request: CreateBoothRequest) {
-  return apiRequest<Booth>(`/festivals/${festivalId}/booths`, {
+export async function createBooth(festivalId: string, request: CreateBoothRequest) {
+  const response = await apiRequest<{ booth: Booth }>(`/festivals/${festivalId}/booths`, {
     method: 'POST',
     body: request
   })
+
+  return response.booth
 }
 
 export function importBoothsCsv(
@@ -113,26 +140,34 @@ export function importBoothsCsv(
   })
 }
 
-export function listBooths(festivalId: string) {
-  return apiRequest<Booth[]>(`/festivals/${festivalId}/booths`)
+export async function listBooths(festivalId: string) {
+  const response = await apiRequest<{ booths: Booth[] }>(`/festivals/${festivalId}/booths`)
+
+  return response.booths
 }
 
-export function getBooth(boothId: string) {
-  return apiRequest<Booth>(`/booths/${boothId}`)
+export async function getBooth(boothId: string) {
+  const response = await apiRequest<{ booth: Booth }>(`/booths/${boothId}`)
+
+  return response.booth
 }
 
-export function updateBooth(boothId: string, request: Partial<CreateBoothRequest>) {
-  return apiRequest<Booth>(`/booths/${boothId}`, {
+export async function updateBooth(boothId: string, request: Partial<CreateBoothRequest>) {
+  const response = await apiRequest<{ booth: Booth }>(`/booths/${boothId}`, {
     method: 'PATCH',
     body: request
   })
+
+  return response.booth
 }
 
-export function updateBoothStatus(boothId: string, operatingStatus: string) {
-  return apiRequest<Booth>(`/booths/${boothId}/status`, {
+export async function updateBoothStatus(boothId: string, operatingStatus: string) {
+  const response = await apiRequest<{ booth: Booth }>(`/booths/${boothId}/status`, {
     method: 'PATCH',
     body: { operatingStatus }
   })
+
+  return response.booth
 }
 
 export function deleteBooth(boothId: string) {
@@ -141,57 +176,81 @@ export function deleteBooth(boothId: string) {
   })
 }
 
-export function createStaffInvite(festivalId: string, request: CreateStaffInviteRequest) {
-  return apiRequest<StaffInvite>(`/festivals/${festivalId}/staff-invites`, {
+export async function createStaffInvite(festivalId: string, request: CreateStaffInviteRequest) {
+  const response = await apiRequest<{ invite: StaffInvite }>(`/festivals/${festivalId}/staff-invites`, {
     method: 'POST',
     body: request
   })
+
+  return response.invite
 }
 
-export function listStaffInvites(festivalId: string) {
-  return apiRequest<StaffInvite[]>(`/festivals/${festivalId}/staff-invites`)
+export async function listStaffInvites(festivalId: string) {
+  const response = await apiRequest<{ invites: StaffInvite[] }>(`/festivals/${festivalId}/staff-invites`)
+
+  return response.invites
 }
 
-export function revokeStaffInvite(inviteCode: string) {
-  return apiRequest<StaffInvite>(`/staff-invites/${inviteCode}/revoke`, {
+export async function revokeStaffInvite(inviteCode: string) {
+  const response = await apiRequest<{ invite: StaffInvite }>(`/staff-invites/${inviteCode}/revoke`, {
     method: 'POST'
   })
+
+  return response.invite
 }
 
-export function listStaffRequests(festivalId: string) {
-  return apiRequest<StaffRequest[]>(`/festivals/${festivalId}/staff-requests`)
+export async function listStaffRequests(festivalId: string) {
+  const response = await apiRequest<{ requests: StaffRequest[] }>(`/festivals/${festivalId}/staff-requests`)
+
+  return response.requests
 }
 
-export function approveStaffRequest(requestId: string) {
-  return apiRequest<StaffRequest>(`/staff-requests/${requestId}/approve`, {
+export async function approveStaffRequest(requestId: string) {
+  const response = await apiRequest<{ request: StaffRequest }>(`/staff-requests/${requestId}/approve`, {
     method: 'POST'
   })
+
+  return response.request
 }
 
-export function rejectStaffRequest(requestId: string, reason?: string) {
-  return apiRequest<StaffRequest>(`/staff-requests/${requestId}/reject`, {
+export async function rejectStaffRequest(requestId: string, reason?: string) {
+  const response = await apiRequest<{ request: StaffRequest }>(`/staff-requests/${requestId}/reject`, {
     method: 'POST',
     body: reason ? { reason } : {}
   })
+
+  return response.request
 }
 
-export function getReportSummary(festivalId: string, query: ReportListQuery = {}) {
-  return apiRequest<ReportSummary>(`/festivals/${festivalId}/reports/summary${toQueryString(query)}`)
+export async function getReportSummary(festivalId: string, query: ReportListQuery = {}) {
+  const response = await apiRequest<{ summary: ReportSummary }>(
+    `/festivals/${festivalId}/reports/summary${toQueryString(query)}`
+  )
+
+  return response.summary
 }
 
-export function listScanReports(festivalId: string, query: ReportListQuery = {}) {
-  return apiRequest<unknown[]>(`/festivals/${festivalId}/reports/scans${toQueryString(query)}`)
+export async function listScanReports(festivalId: string, query: ReportListQuery = {}) {
+  const response = await apiRequest<{ scans: ScanReport[] }>(
+    `/festivals/${festivalId}/reports/scans${toQueryString(query)}`
+  )
+
+  return response.scans
 }
 
-export function listUsageReports(festivalId: string, query: ReportListQuery = {}) {
-  return apiRequest<unknown[]>(`/festivals/${festivalId}/reports/usage${toQueryString(query)}`)
+export async function listUsageReports(festivalId: string, query: ReportListQuery = {}) {
+  const response = await apiRequest<{ usage: UsageReport[] }>(
+    `/festivals/${festivalId}/reports/usage${toQueryString(query)}`
+  )
+
+  return response.usage
 }
 
 export function uploadFile(purpose: string, file: File) {
   const formData = new FormData()
   formData.append('file', file)
 
-  return apiRequest<{ url: string }>(`/uploads/${purpose}`, {
+  return apiRequest<{ fileUrl: string; path: string; originalName?: string; mimeType?: string; size?: number }>(`/uploads/${purpose}`, {
     method: 'POST',
     body: formData
   })

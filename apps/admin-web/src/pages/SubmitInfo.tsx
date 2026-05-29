@@ -1,12 +1,15 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { createAdminProfile, uploadFile } from '../lib/adminApi'
+import { ApiError } from '../lib/api'
 import { isPreviewableImage, readFileAsDataUrl } from '../lib/filePreview'
 import { saveSubmittedAdminInfo } from '../lib/localState'
 
-const fields: Array<{ id: string; name: string; label: string; placeholder: string; type?: string }> = [
-  { id: 'admin-name', name: 'name', label: '이름', placeholder: '이름을 입력하세요 ...' },
-  { id: 'admin-email', name: 'email', label: '이메일', placeholder: '이메일을 입력하세요 ...', type: 'email' },
-  { id: 'admin-role', name: 'role', label: '직책', placeholder: '직책을 입력하세요 ...' },
-  { id: 'admin-org', name: 'organization', label: '소속 기관', placeholder: '소속 기관을 입력하세요 ...' }
+const fields: Array<{ id: string; name: string; label: string; placeholder: string }> = [
+  { id: 'admin-school', name: 'schoolName', label: '학교명', placeholder: '학교명을 입력하세요 ...' },
+  { id: 'admin-org', name: 'organizationName', label: '소속 기관', placeholder: '소속 기관을 입력하세요 ...' },
+  { id: 'admin-department', name: 'department', label: '부서', placeholder: '부서를 입력하세요 ...' },
+  { id: 'admin-position', name: 'position', label: '직책', placeholder: '직책을 입력하세요 ...' },
+  { id: 'admin-role', name: 'role', label: '담당 역할', placeholder: '담당 역할을 입력하세요 ...' }
 ]
 
 const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png']
@@ -16,13 +19,17 @@ export function SubmitInfo({
 }: {
   onSubmitted?: (path: string) => void
 }) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFileName, setSelectedFileName] = useState('')
   const [previewUrl, setPreviewUrl] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
 
     if (!file) {
+      setSelectedFile(null)
       setSelectedFileName('')
       setPreviewUrl('')
       return
@@ -31,35 +38,68 @@ export function SubmitInfo({
     if (!allowedFileTypes.includes(file.type)) {
       window.alert('PDF, JPG, PNG 파일만 업로드할 수 있습니다.')
       event.target.value = ''
+      setSelectedFile(null)
       setSelectedFileName('')
       setPreviewUrl('')
       return
     }
 
+    setSelectedFile(file)
     setSelectedFileName(file.name)
     setPreviewUrl(isPreviewableImage(file) ? await readFileAsDataUrl(file) : '')
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setErrorMessage('')
 
-    if (!selectedFileName) {
+    if (!selectedFile) {
       window.alert('관리자 증빙 자료를 업로드해주세요.')
       return
     }
 
     const formData = new FormData(event.currentTarget)
+    const schoolName = String(formData.get('schoolName') || '').trim()
+    const organizationName = String(formData.get('organizationName') || '').trim()
+    const department = String(formData.get('department') || '').trim()
+    const position = String(formData.get('position') || '').trim()
+    const role = String(formData.get('role') || '').trim()
 
-    saveSubmittedAdminInfo({
-      name: String(formData.get('name') || ''),
-      email: String(formData.get('email') || ''),
-      role: String(formData.get('role') || ''),
-      organization: String(formData.get('organization') || ''),
-      proofFileName: selectedFileName,
-      proofFilePreviewUrl: previewUrl
-    })
+    if (!schoolName || !organizationName || !role) {
+      setErrorMessage('학교명, 소속 기관, 담당 역할은 필수입니다.')
+      return
+    }
 
-    onSubmitted('/waitVC')
+    setIsSubmitting(true)
+
+    try {
+      const uploadedFile = await uploadFile('admin-proof', selectedFile)
+
+      await createAdminProfile({
+        schoolName,
+        organizationName,
+        department,
+        position,
+        role,
+        proofFileUrl: uploadedFile.fileUrl
+      })
+
+      saveSubmittedAdminInfo({
+        schoolName,
+        organizationName,
+        department,
+        position,
+        role,
+        proofFileName: selectedFileName,
+        proofFilePreviewUrl: previewUrl
+      })
+
+      onSubmitted('/waitVC')
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, '관리자 프로필 제출에 실패했습니다.'))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -126,20 +166,34 @@ export function SubmitInfo({
                   name={field.name}
                   className="mt-3 h-[72px] w-full rounded-[15px] border border-[#e0e0e0] bg-white px-8 text-[15px] outline-none transition placeholder:text-[#8a8a8a] focus:border-[#0097ce] focus:ring-4 focus:ring-[#0097ce]/15"
                   placeholder={field.placeholder}
-                  type={field.type ?? 'text'}
+                  type="text"
                 />
               </div>
             ))}
+            {errorMessage ? (
+              <p className="break-keep text-[14px] font-semibold leading-6 text-[#e24a4a]">
+                {errorMessage}
+              </p>
+            ) : null}
           </div>
 
           <button
             type="submit"
-            className="mx-auto mt-0 flex h-12 w-full max-w-[479px] items-center justify-center rounded-[15px] bg-[#0097ce] px-8 text-[17px] font-medium text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40 lg:col-span-2 lg:mt-0"
+            disabled={isSubmitting}
+            className="mx-auto mt-0 flex h-12 w-full max-w-[479px] items-center justify-center rounded-[15px] bg-[#0097ce] px-8 text-[17px] font-medium text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40 disabled:cursor-wait disabled:opacity-60 lg:col-span-2 lg:mt-0"
           >
-            관리자 VC 발급 요청
+            {isSubmitting ? '제출 중' : '관리자 VC 발급 요청'}
           </button>
         </form>
       </section>
     </main>
   )
+}
+
+function toErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError || error instanceof Error) {
+    return error.message || fallback
+  }
+
+  return fallback
 }

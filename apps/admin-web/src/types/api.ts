@@ -1,8 +1,7 @@
 export type AuthProviderType =
   | 'mobile_id_sdk'
   | 'omnione_cx'
-  | 'raonsecure'
-  | 'opendid'
+  | 'raonsecure_sdk'
   | (string & {})
 
 export type ClientType = 'admin_web' | 'mobile_app'
@@ -23,20 +22,24 @@ export type StartMobileIdAuthRequest = {
 export type StartMobileIdAuthResponse = {
   authRequestId: string
   provider: AuthProviderType
+  nonce?: string
   state?: string
   status?: string
   expiresAt?: string
+  payload?: MobileIdStartPayload
   invocationPayload?: unknown
   qrBase64?: string
 }
 
 export type AuthRequestStatus = {
-  authRequestId: string
-  provider: AuthProviderType
-  status: string
-  state?: string
-  expiresAt?: string
-  invocationPayload?: unknown
+  authRequest: {
+    authRequestId: string
+    provider: AuthProviderType
+    status: string
+    state?: string
+    expiresAt?: string
+    invocationPayload?: unknown
+  }
 }
 
 export type VerifyMobileIdAuthRequest = {
@@ -55,9 +58,28 @@ export type CamPassUser = {
   id: string
   did?: string
   name?: string
+  phone?: string
+  isAdult?: boolean
   provider?: AuthProviderType
   createdAt?: string
   updatedAt?: string
+}
+
+export type MobileIdStartPayload = {
+  authRequestId?: string
+  authFlow?: MobileIdAuthFlow
+  requestType?: 'WEB2APP' | 'APP2APP'
+  oacxProvider?: string
+  webBaseUrl?: string
+  configUrl?: string
+  cxId?: string
+  txId?: string
+  token?: string
+  signType?: string
+  qrBase64?: string
+  deepLink?: string
+  appLink?: string
+  [key: string]: unknown
 }
 
 export type AdminProfile = {
@@ -76,6 +98,15 @@ export type AdminProfile = {
   updatedAt?: string
 }
 
+export type AdminProfileListResponse = {
+  profiles: AdminProfile[]
+  pagination?: {
+    limit?: number
+    offset?: number
+    total?: number
+  }
+}
+
 export type CreateAdminProfileRequest = {
   schoolName: string
   organizationName: string
@@ -88,24 +119,31 @@ export type CreateAdminProfileRequest = {
 export type Festival = {
   id: string
   name: string
-  organizer?: string
-  startsAt?: string
-  endsAt?: string
+  ownerId?: string
+  schoolName?: string
+  startDate?: string
+  endDate?: string
   location?: string
+  operatingTime?: string
   description?: string
-  posterUrl?: string
+  imageUrl?: string
+  visibility?: 'public' | 'private' | string
+  status?: 'draft' | 'active' | 'ended' | string
   createdAt?: string
   updatedAt?: string
 }
 
 export type CreateFestivalRequest = {
   name: string
-  organizer?: string
-  startsAt?: string
-  endsAt?: string
+  schoolName?: string
+  startDate?: string
+  endDate?: string
   location?: string
+  operatingTime?: string
   description?: string
-  posterUrl?: string
+  imageUrl?: string
+  visibility?: 'public' | 'private'
+  status?: 'draft' | 'active' | 'ended'
 }
 
 export type Booth = {
@@ -128,7 +166,7 @@ export type CreateBoothRequest = Omit<Booth, 'id' | 'festivalId'>
 export type PassTemplate = {
   id: string
   festivalId: string
-  type: 'entry' | 'adult' | 'student' | string
+  type: 'entry' | 'student' | 'adult' | 'staff' | 'admin' | string
   name: string
   enabled?: boolean
   verificationRule?: Record<string, unknown>
@@ -144,6 +182,8 @@ export type StaffInvite = {
   role: string
   scope: string[]
   expiresAt?: string
+  status?: string
+  createdAt?: string
 }
 
 export type CreateStaffInviteRequest = {
@@ -156,9 +196,12 @@ export type StaffRequest = {
   id: string
   festivalId: string
   userId: string
-  status: 'pending' | 'approved' | 'rejected' | string
-  role?: string
+  inviteId?: string
+  status: 'requested' | 'approved' | 'rejected' | string
+  requestedRole?: string
+  maskedDid?: string
   scope?: string[]
+  approvedAt?: string
   createdAt?: string
 }
 
@@ -167,6 +210,22 @@ export type ReportSummary = {
   allowedScans?: number
   deniedScans?: number
   usageCount?: number
+  totalPassIssuedCount?: number
+  entryProcessedCount?: number
+  studentVerifiedCount?: number
+  adultVerifiedCount?: number
+  boothUsageCount?: number
+  eventParticipationCount?: number
+  duplicateBlockedCount?: number
+  recentScans?: ScanReport[]
+  boothUsage?: Array<{
+    boothId?: string | null
+    booth?: Pick<Booth, 'id' | 'name' | 'category'> | null
+    count: number
+  }>
+  hourlyScanCount?: Array<{ hour: string; count: number }>
+  scanResultCount?: Array<{ result: string; count: number }>
+  usageTypeCount?: Array<{ usageType: string; count: number }>
   [key: string]: unknown
 }
 
@@ -178,4 +237,26 @@ export type ReportListQuery = {
   scanPurpose?: string
   result?: string
   usageType?: string
+}
+
+export type ScanReport = {
+  id: string
+  festivalId: string
+  staffId?: string | null
+  userId?: string | null
+  boothId?: string | null
+  scanPurpose?: string
+  result?: string
+  reason?: string | null
+  createdAt?: string
+}
+
+export type UsageReport = {
+  id: string
+  festivalId: string
+  boothId?: string | null
+  userId?: string
+  benefitType?: string | null
+  usageType?: string
+  usedAt?: string
 }

@@ -160,6 +160,7 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
         webBaseUrl: this.configService.get<string>('OMNIONE_CX_WEB_BASE_URL'),
         configUrl: this.configService.get<string>('OMNIONE_CX_CONFIG_URL'),
         cxId: authRequest.cxId,
+        signType,
         oacxStatus: authRequest.oacxStatus,
         clientMessage: authRequest.clientMessage,
         data: authRequest.data,

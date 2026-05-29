@@ -72,7 +72,7 @@ describe('auth helpers', () => {
 
   it('uses the stored token for /auth/me and clears it after logout', async () => {
     setAccessToken('access-token')
-    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'user-1', did: 'did:example:user-1' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ user: { id: 'user-1', did: 'did:example:user-1' } }))
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
 
     await expect(getCurrentUser()).resolves.toEqual({ id: 'user-1', did: 'did:example:user-1' })

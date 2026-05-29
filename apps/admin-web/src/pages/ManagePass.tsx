@@ -1,12 +1,43 @@
+import { useEffect, useState } from 'react'
 import { FestStepProgress } from '../components/FestStepProgress'
+import { listPassTemplates } from '../lib/adminApi'
+import { resolveActiveFestival } from '../lib/activeFestival'
+import type { PassTemplate } from '../types/api'
 
 const passTypes = [
   { label: '재학생 패스', value: 'student' },
-  { label: '외부인 패스', value: 'guest' },
+  { label: '외부인 패스', value: 'entry' },
   { label: '스태프 패스', value: 'staff' }
 ]
 
 export function ManagePass() {
+  const [templates, setTemplates] = useState<PassTemplate[]>([])
+  const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    let ignore = false
+
+    resolveActiveFestival()
+      .then(({ festivalId }) => listPassTemplates(festivalId))
+      .then((items) => {
+        if (!ignore) {
+          setTemplates(items)
+          setLoadError('')
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setLoadError(error instanceof Error ? error.message : '패스 템플릿을 불러오지 못했습니다.')
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  const enabledTemplateCount = templates.filter((template) => template.enabled !== false).length
+
   return (
     <main className="min-h-screen bg-white px-5 py-8 font-sans text-[#1a1a1a] sm:py-10">
       <h1 className="font-brand mx-auto text-center text-[42px] leading-none text-[#0097ce] sm:text-[49px]">
@@ -38,19 +69,30 @@ export function ManagePass() {
           <p className="mt-1 break-keep text-[15px] leading-relaxed text-[#313131]">
             패스 발급 조건들을 설정해주세요.
           </p>
+          <p className="mt-2 text-[14px] font-semibold text-[#5b6775]">
+            백엔드에 저장된 활성 패스 템플릿 {enabledTemplateCount}개
+            {loadError ? ` · ${loadError}` : ''}
+          </p>
 
           <div className="mt-2 rounded-[15px] border border-[#e0e0e0] px-7 py-11 sm:px-10">
             <div className="grid gap-8 lg:grid-cols-3">
-              {passTypes.map((passType) => (
-                <a
-                  href={`/setPass?pass=${passType.value}`}
-                  key={passType.value}
-                  className="group relative block h-[186px] rounded-[15px] bg-[#0097ce] p-5 text-left text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40"
-                >
-                  <span className="text-[17px] font-medium">{passType.label}</span>
-                  <SettingsIcon />
-                </a>
-              ))}
+              {passTypes.map((passType) => {
+                const template = templates.find((item) => item.type === passType.value)
+
+                return (
+                  <a
+                    href={`/setPass?pass=${passType.value}`}
+                    key={passType.value}
+                    className="group relative block h-[186px] rounded-[15px] bg-[#0097ce] p-5 text-left text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40"
+                  >
+                    <span className="text-[17px] font-medium">{passType.label}</span>
+                    <span className="mt-3 block text-[13px] font-semibold text-white/85">
+                      {template ? (template.enabled === false ? '비활성' : '활성') : '미설정'}
+                    </span>
+                    <SettingsIcon />
+                  </a>
+                )
+              })}
             </div>
           </div>
         </section>

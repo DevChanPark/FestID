@@ -15,7 +15,7 @@ describe('ManagePass', () => {
     )
     expect(screen.getByRole('link', { name: /외부인 패스/ })).toHaveAttribute(
       'href',
-      '/setPass?pass=guest'
+      '/setPass?pass=entry'
     )
     expect(screen.getByRole('link', { name: /스태프 패스/ })).toHaveAttribute(
       'href',

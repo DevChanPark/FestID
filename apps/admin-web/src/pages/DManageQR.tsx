@@ -11,6 +11,9 @@ import {
   DashboardMetricCard,
   EntryMetricIcon
 } from '../components/AdminDashboardLayout'
+import { getReportSummary, listBooths, listScanReports } from '../lib/adminApi'
+import { resolveActiveFestival } from '../lib/activeFestival'
+import type { Booth, ReportSummary, ScanReport } from '../types/api'
 
 type QrMode = 'booth' | 'performance'
 type QrModeConfig = {
@@ -150,15 +153,23 @@ export function DManageQR() {
   const [totalSeats, setTotalSeats] = useState(500)
   const [remainingSeats, setRemainingSeats] = useState(84)
   const [allowedWaitNumber, setAllowedWaitNumber] = useState(30)
+  const [summary, setSummary] = useState<ReportSummary | null>(null)
+  const [booths, setBooths] = useState<Booth[]>([])
+  const [scans, setScans] = useState<ScanReport[]>([])
+  const [statusMessage, setStatusMessage] = useState('')
   const selectedMode = qrModes[mode]
   const selectedDayStats = dayQrStats[selectedDay][mode]
-  const stats = selectedMode.countLabel && selectedMode.countValue
+  const fallbackStats = selectedMode.countLabel && selectedMode.countValue
     ? [
         { label: selectedMode.countLabel, value: selectedDayStats.countValue ?? selectedMode.countValue, icon: <BoothMetricIcon /> },
         ...selectedMode.stats.map((stat, index) => ({ ...stat, value: selectedDayStats.statValues[index] ?? stat.value }))
       ]
     : selectedMode.stats.map((stat, index) => ({ ...stat, value: selectedDayStats.statValues[index] ?? stat.value }))
-  const sortedReviewItems = [...selectedDayStats.reviewItems].sort(
+  const stats = summary && mode === 'booth'
+    ? buildQrStats(summary, booths.length)
+    : fallbackStats
+  const reviewItems = scans.length > 0 ? buildReviewItems(scans) : selectedDayStats.reviewItems
+  const sortedReviewItems = [...reviewItems].sort(
     (firstItem, secondItem) => getRecentMinutes(firstItem.recent) - getRecentMinutes(secondItem.recent)
   )
   const waitingCount = mode === 'performance' ? Number(stats.find((stat) => stat.label === '대기 명수')?.value ?? 0) : 0
@@ -196,10 +207,34 @@ export function DManageQR() {
   }
 
   useEffect(() => {
+    let ignore = false
+
+    resolveActiveFestival()
+      .then(async ({ festivalId }) => {
+        const [nextSummary, nextBooths, nextScans] = await Promise.all([
+          getReportSummary(festivalId),
+          listBooths(festivalId),
+          listScanReports(festivalId, { limit: 30 })
+        ])
+
+        if (!ignore) {
+          setSummary(nextSummary)
+          setBooths(nextBooths)
+          setScans(nextScans)
+          setStatusMessage('백엔드 QR 운영 데이터를 불러왔습니다.')
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setStatusMessage(error instanceof Error ? error.message : 'QR 운영 데이터를 불러오지 못했습니다.')
+        }
+      })
+
     return () => {
       if (admissionTimerRef.current !== null) {
         window.clearTimeout(admissionTimerRef.current)
       }
+      ignore = true
     }
   }, [])
 
@@ -207,7 +242,12 @@ export function DManageQR() {
     <AdminDashboardLayout activeSection="qr">
       <DashboardContent>
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-[31px] font-bold leading-tight">현장 QR 관리</h2>
+          <div>
+            <h2 className="text-[31px] font-bold leading-tight">현장 QR 관리</h2>
+            {statusMessage ? (
+              <p className="mt-2 break-keep text-[14px] font-semibold text-[#5b6775]">{statusMessage}</p>
+            ) : null}
+          </div>
           <DashboardDaySelector value={selectedDay} onChange={setSelectedDay} />
         </div>
 
@@ -341,7 +381,7 @@ export function DManageQR() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h3 className="text-[21px] font-semibold">{selectedMode.reviewTitle}</h3>
             <span className="rounded-full bg-[#fff1f0] px-4 py-2 text-[14px] font-semibold text-[#ff352e]">
-              {selectedDayStats.rejectSummary}
+              {summary ? `거절 ${countDenied(summary)}건` : selectedDayStats.rejectSummary}
             </span>
           </div>
 
@@ -373,6 +413,64 @@ export function DManageQR() {
       </DashboardContent>
     </AdminDashboardLayout>
   )
+}
+
+function buildQrStats(summary: ReportSummary, boothCount: number) {
+  const totalScans = summary.scanResultCount?.reduce((total, item) => total + item.count, 0) ?? 0
+  const allowed = summary.scanResultCount?.find((item) => item.result === 'allowed')?.count ?? 0
+  const denied = countDenied(summary)
+
+  return [
+    { label: '총 부스 개수', value: String(boothCount), icon: <BoothMetricIcon /> },
+    { label: '전체 스캔 수', value: String(totalScans), icon: <EntryMetricIcon /> },
+    { label: '승인', value: String(allowed), icon: <CheckMetricIcon /> },
+    { label: '거절', value: String(denied), icon: <RejectMetricIcon /> }
+  ]
+}
+
+function countDenied(summary: ReportSummary) {
+  return summary.scanResultCount
+    ?.filter((item) => item.result !== 'allowed')
+    .reduce((total, item) => total + item.count, 0) ?? 0
+}
+
+function buildReviewItems(scans: ScanReport[]) {
+  const rejected = scans.filter((scan) => scan.result && scan.result !== 'allowed')
+  return (rejected.length > 0 ? rejected : scans.slice(0, 3)).slice(0, 6).map((scan) => ({
+    name: scan.boothId || scan.scanPurpose || '-',
+    reason: scan.reason || resultLabel(scan.result),
+    personName: scan.userId ? maskShort(scan.userId) : '-',
+    recent: formatRecent(scan.createdAt)
+  }))
+}
+
+function resultLabel(result: string | undefined) {
+  const labels: Record<string, string> = {
+    allowed: '승인된 스캔',
+    denied: '검증 거절',
+    expired: '만료된 QR',
+    already_used: '중복 사용 시도',
+    missing_credential: '필수 VC 없음',
+    invalid_qr: '유효하지 않은 QR',
+    missing_staff_scope: '스태프 권한 부족'
+  }
+
+  return labels[result ?? ''] ?? 'QR 검증 기록'
+}
+
+function maskShort(value: string) {
+  return value.length <= 8 ? value : `${value.slice(0, 3)}****${value.slice(-2)}`
+}
+
+function formatRecent(value: string | undefined) {
+  if (!value) {
+    return '-'
+  }
+
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(value))
 }
 
 function WaitMetricIcon() {

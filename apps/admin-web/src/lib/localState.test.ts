@@ -15,19 +15,21 @@ describe('local page state', () => {
 
   it('persists the submitted admin information for WaitVC', () => {
     saveSubmittedAdminInfo({
-      name: '홍길동',
-      email: 'admin@example.com',
+      schoolName: '광운대학교',
+      organizationName: '총학생회',
+      department: '축제기획국',
+      position: '팀장',
       role: '운영팀장',
-      organization: '광운대학교 총학생회',
       proofFileName: 'proof.png',
       proofFilePreviewUrl: 'data:image/png;base64,proof'
     })
 
     expect(getSubmittedAdminInfo()).toMatchObject({
-      name: '홍길동',
-      email: 'admin@example.com',
+      schoolName: '광운대학교',
+      organizationName: '총학생회',
+      department: '축제기획국',
+      position: '팀장',
       role: '운영팀장',
-      organization: '광운대학교 총학생회',
       proofFileName: 'proof.png',
       proofFilePreviewUrl: 'data:image/png;base64,proof'
     })

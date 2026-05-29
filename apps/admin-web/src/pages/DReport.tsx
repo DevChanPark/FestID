@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import {
   AdminDashboardLayout,
@@ -7,6 +7,9 @@ import {
   DashboardContent,
   type DashboardDay
 } from '../components/AdminDashboardLayout'
+import { getReportSummary, listScanReports, listUsageReports } from '../lib/adminApi'
+import { resolveActiveFestival } from '../lib/activeFestival'
+import type { ReportSummary, ScanReport, UsageReport } from '../types/api'
 
 const metricCards = [
   { label: '총 방문자 수', value: '1,009', tone: 'blue', icon: <UsersIcon /> },
@@ -89,10 +92,55 @@ export function DReport() {
   const [selectedDashboardDay, setSelectedDashboardDay] = useState<DashboardDay>('Day 1')
   const [selectedDays, setSelectedDays] = useState(['Day 1'])
   const [isDayDropdownOpen, setIsDayDropdownOpen] = useState(false)
-  const currentDay = reportDayData[selectedDashboardDay]
+  const [summary, setSummary] = useState<ReportSummary | null>(null)
+  const [scans, setScans] = useState<ScanReport[]>([])
+  const [usage, setUsage] = useState<UsageReport[]>([])
+  const [statusMessage, setStatusMessage] = useState('')
+  const fallbackDay = reportDayData[selectedDashboardDay]
+  const currentDay = {
+    ...fallbackDay,
+    metricCards: summary ? buildReportMetrics(summary) : fallbackDay.metricCards,
+    anomalyRows: scans.length > 0 ? buildAnomalyRows(scans) : fallbackDay.anomalyRows,
+    entryValues: summary?.hourlyScanCount?.length ? hourlyValues(summary.hourlyScanCount) : fallbackDay.entryValues,
+    qrValues: summary?.hourlyScanCount?.length ? hourlyValues(summary.hourlyScanCount, 0.8) : fallbackDay.qrValues
+  }
+  const displayedTopBooths = summary?.boothUsage?.length ? buildTopBooths(summary.boothUsage) : topBooths
+  const displayedParticipationTypes = summary?.usageTypeCount?.length
+    ? buildParticipationTypes(summary.usageTypeCount)
+    : participationTypes
+  const totalParticipation = usage.length || Number(summary?.boothUsageCount ?? 0) + Number(summary?.eventParticipationCount ?? 0) || 1009
   const selectedDayLabel = selectedDays.length === reportDays.length
     ? 'Day 1 ~ Day 3'
     : selectedDays.join(', ')
+
+  useEffect(() => {
+    let ignore = false
+
+    resolveActiveFestival()
+      .then(async ({ festivalId }) => {
+        const [nextSummary, nextScans, nextUsage] = await Promise.all([
+          getReportSummary(festivalId),
+          listScanReports(festivalId, { limit: 50 }),
+          listUsageReports(festivalId, { limit: 50 })
+        ])
+
+        if (!ignore) {
+          setSummary(nextSummary)
+          setScans(nextScans)
+          setUsage(nextUsage)
+          setStatusMessage('백엔드 운영 리포트를 불러왔습니다.')
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setStatusMessage(error instanceof Error ? error.message : '운영 리포트를 불러오지 못했습니다.')
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const toggleDay = (day: string) => {
     setSelectedDays((current) => {
@@ -108,7 +156,12 @@ export function DReport() {
     <AdminDashboardLayout activeSection="report">
       <DashboardContent>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-[31px] font-bold leading-tight">운영 리포트</h2>
+          <div>
+            <h2 className="text-[31px] font-bold leading-tight">운영 리포트</h2>
+            {statusMessage ? (
+              <p className="mt-2 break-keep text-[14px] font-semibold text-[#5b6775]">{statusMessage}</p>
+            ) : null}
+          </div>
           <DashboardDaySelector value={selectedDashboardDay} onChange={setSelectedDashboardDay} />
         </div>
 
@@ -144,7 +197,7 @@ export function DReport() {
           <article className="rounded-[10px] border border-[#e1e1e1] bg-white px-5 py-5 shadow-[0_4px_18px_rgba(0,0,0,0.04)]">
             <h3 className="text-[20px] font-semibold">인기 부스 TOP 5</h3>
             <div className="mt-5 space-y-3">
-              {topBooths.map((booth, index) => (
+              {displayedTopBooths.map((booth, index) => (
                 <div key={booth.name} className="grid grid-cols-[150px_1fr_86px] items-center gap-4 text-[14px] max-sm:grid-cols-1 max-sm:gap-2">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#2f80ff] text-[12px] font-bold text-white">
@@ -166,9 +219,9 @@ export function DReport() {
           <article className="rounded-[10px] border border-[#e1e1e1] bg-white px-5 py-5 shadow-[0_4px_18px_rgba(0,0,0,0.04)]">
             <h3 className="text-[20px] font-semibold">참여 유형 분포</h3>
             <div className="mt-4 grid items-center gap-5 md:grid-cols-[210px_1fr]">
-              <DonutChart />
+              <DonutChart total={totalParticipation} />
               <div className="space-y-4">
-                {participationTypes.map((item) => (
+                {displayedParticipationTypes.map((item) => (
                   <div key={item.label} className="grid grid-cols-[1fr_auto] items-center gap-4 text-[15px]">
                     <div className="flex items-center gap-3 font-semibold text-[#313131]">
                       <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
@@ -283,6 +336,106 @@ export function DReport() {
   )
 }
 
+function buildReportMetrics(summary: ReportSummary) {
+  return [
+    { label: '총 방문자 수', value: String(summary.totalPassIssuedCount ?? 0), tone: 'blue', icon: <UsersIcon /> },
+    { label: '현장 입장 수', value: String(summary.entryProcessedCount ?? 0), tone: 'green', icon: <WalkIcon /> },
+    { label: 'QR 인증 수', value: String(totalScanCount(summary)), tone: 'purple', icon: <QrGridIcon /> },
+    { label: '부스 참여율', value: `${participationRate(summary)}%`, tone: 'amber', icon: <ChartIcon /> }
+  ]
+}
+
+function totalScanCount(summary: ReportSummary) {
+  return summary.scanResultCount?.reduce((total, item) => total + item.count, 0) ?? summary.totalScans ?? 0
+}
+
+function participationRate(summary: ReportSummary) {
+  const totalPasses = Number(summary.totalPassIssuedCount ?? 0)
+  const participations = Number(summary.boothUsageCount ?? 0) + Number(summary.eventParticipationCount ?? 0)
+
+  if (totalPasses <= 0) {
+    return 0
+  }
+
+  return Math.min(100, Math.round((participations / totalPasses) * 100))
+}
+
+function buildAnomalyRows(scans: ScanReport[]) {
+  const deniedScans = scans.filter((scan) => scan.result && scan.result !== 'allowed')
+
+  return (deniedScans.length > 0 ? deniedScans : scans.slice(0, 2)).slice(0, 5).map((scan) => ({
+    item: resultLabel(scan.result),
+    location: scan.boothId || scan.scanPurpose || '-',
+    time: formatTime(scan.createdAt)
+  }))
+}
+
+function buildTopBooths(boothUsage: NonNullable<ReportSummary['boothUsage']>) {
+  const max = Math.max(...boothUsage.map((item) => item.count), 1)
+  const total = boothUsage.reduce((sum, item) => sum + item.count, 0) || 1
+
+  return boothUsage.slice(0, 5).map((item) => ({
+    name: item.booth?.name || item.boothId || '부스',
+    value: item.count,
+    percent: `${Math.round((item.count / total) * 1000) / 10}%`,
+    width: `${Math.max(8, Math.round((item.count / max) * 100))}%`
+  }))
+}
+
+function buildParticipationTypes(items: NonNullable<ReportSummary['usageTypeCount']>) {
+  const colors = ['#2f80ff', '#45c58b', '#ff9f1c', '#9b5de5']
+  const total = items.reduce((sum, item) => sum + item.count, 0) || 1
+
+  return items.slice(0, 4).map((item, index) => ({
+    label: usageTypeLabel(item.usageType),
+    value: `${Math.round((item.count / total) * 100)}%`,
+    count: String(item.count),
+    color: colors[index % colors.length]
+  }))
+}
+
+function hourlyValues(items: NonNullable<ReportSummary['hourlyScanCount']>, ratio = 1) {
+  const values = items.slice(-13).map((item) => Math.round(item.count * ratio))
+  return values.length > 1 ? values : [0, ...values, 0]
+}
+
+function resultLabel(result: string | undefined) {
+  const labels: Record<string, string> = {
+    allowed: '허용된 QR 스캔',
+    denied: 'QR 거절',
+    expired: '만료된 QR',
+    already_used: 'QR 중복 인증',
+    missing_credential: '권한 VC 없음',
+    invalid_qr: '유효하지 않은 QR',
+    missing_staff_scope: '스태프 scope 부족'
+  }
+
+  return labels[result ?? ''] ?? 'QR 스캔'
+}
+
+function usageTypeLabel(usageType: string) {
+  const labels: Record<string, string> = {
+    entry: '입장',
+    benefit: '혜택',
+    event: '이벤트',
+    adult_check: '성인 확인',
+    student_check: '재학생 확인'
+  }
+
+  return labels[usageType] ?? usageType
+}
+
+function formatTime(value: string | undefined) {
+  if (!value) {
+    return '-'
+  }
+
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(value))
+}
+
 function ReportMetricCard({
   label,
   value,
@@ -358,7 +511,7 @@ function VisitTrendChart({ entryValues, qrValues }: { entryValues: number[]; qrV
   )
 }
 
-function DonutChart() {
+function DonutChart({ total }: { total: number }) {
   return (
     <div className="relative mx-auto h-[200px] w-[200px]">
       <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-label="참여 유형 분포 차트">
@@ -370,7 +523,7 @@ function DonutChart() {
       <div className="absolute inset-0 grid place-items-center text-center">
         <p className="text-[15px] font-semibold text-[#454545]">
           총 참여
-          <span className="mt-1 block text-[22px] font-bold text-[#1a1a1a]">1,009</span>
+          <span className="mt-1 block text-[22px] font-bold text-[#1a1a1a]">{total.toLocaleString()}</span>
         </p>
       </div>
     </div>
