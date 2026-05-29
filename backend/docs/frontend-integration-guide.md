@@ -4,6 +4,10 @@ This guide is the contract between the admin web, mobile app, and CamPass
 backend. Do not put mobile ID personal data, OpenDID wallet files, private keys,
 or VC documents inside CamPass QR payloads.
 
+For detailed cross-client screen refresh rules, approval state transitions, QR
+scan effects, and report synchronization, see
+`docs/web-app-state-sync-guide.md`.
+
 ## 1. Common Auth Flow
 
 Use this flow from both admin web and mobile app.
