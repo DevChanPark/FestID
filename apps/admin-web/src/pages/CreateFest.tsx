@@ -1,22 +1,32 @@
-import { useState, type ChangeEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { FestStepProgress } from '../components/FestStepProgress'
+import { createFestival } from '../lib/adminApi'
+import { getAccessToken } from '../lib/auth'
+import { isPreviewableImage, readFileAsDataUrl } from '../lib/filePreview'
+import { DEFAULT_FESTIVAL_INFO, saveFestivalInfo } from '../lib/localState'
 
 const festivalFields = [
-  { id: 'festival-name', label: '축제명', placeholder: '축제명을 입력하세요 ...' },
-  { id: 'festival-host', label: '주최사', placeholder: '주최사를 입력하세요 ...' },
-  { id: 'festival-place', label: '운영 장소', placeholder: '운영 장소를 입력하세요 ...' }
+  { id: 'festival-name', name: 'name', label: '축제명', placeholder: '축제명을 입력하세요 ...' },
+  { id: 'festival-host', name: 'host', label: '주최사', placeholder: '주최사를 입력하세요 ...' },
+  { id: 'festival-place', name: 'place', label: '운영 장소', placeholder: '운영 장소를 입력하세요 ...' }
 ]
 
 const allowedImageTypes = ['application/pdf', 'image/jpeg', 'image/png']
 
-export function CreateFest() {
+export function CreateFest({
+  onCreated = (path: string) => window.location.assign(path)
+}: {
+  onCreated?: (path: string) => void
+}) {
   const [imageName, setImageName] = useState('')
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
 
-  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
 
     if (!file) {
       setImageName('')
+      setImagePreviewUrl('')
       return
     }
 
@@ -24,10 +34,52 @@ export function CreateFest() {
       window.alert('PDF, JPG, PNG 파일만 업로드할 수 있습니다.')
       event.target.value = ''
       setImageName('')
+      setImagePreviewUrl('')
       return
     }
 
     setImageName(file.name)
+    setImagePreviewUrl(isPreviewableImage(file) ? await readFileAsDataUrl(file) : '')
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+
+    const festivalInfo = saveFestivalInfo({
+      ...DEFAULT_FESTIVAL_INFO,
+      name: String(formData.get('name') || DEFAULT_FESTIVAL_INFO.name),
+      host: String(formData.get('host') || DEFAULT_FESTIVAL_INFO.host),
+      startDate: String(formData.get('startDate') || DEFAULT_FESTIVAL_INFO.startDate),
+      endDate: String(formData.get('endDate') || DEFAULT_FESTIVAL_INFO.endDate),
+      place: String(formData.get('place') || DEFAULT_FESTIVAL_INFO.place),
+      description: String(formData.get('description') || DEFAULT_FESTIVAL_INFO.description),
+      imageName,
+      imagePreviewUrl
+    })
+
+    if (getAccessToken()) {
+      try {
+        const createdFestival = await createFestival({
+          name: festivalInfo.name,
+          organizer: festivalInfo.host,
+          startsAt: festivalInfo.startDate,
+          endsAt: festivalInfo.endDate,
+          location: festivalInfo.place,
+          description: festivalInfo.description
+        })
+
+        saveFestivalInfo({
+          ...festivalInfo,
+          backendId: createdFestival.id
+        })
+      } catch (error) {
+        console.warn('Festival was saved locally, but backend sync failed.', error)
+      }
+    }
+
+    onCreated('/managePass')
   }
 
   return (
@@ -62,7 +114,11 @@ export function CreateFest() {
             축제에 필요한 기본적인 정보를 입력해주세요.
           </p>
 
-          <form className="mt-2 rounded-[15px] border border-[#e0e0e0] px-6 py-7 sm:px-8">
+          <form
+            id="create-fest-form"
+            className="mt-2 rounded-[15px] border border-[#e0e0e0] px-6 py-7 sm:px-8"
+            onSubmit={handleSubmit}
+          >
             <div className="grid gap-x-14 gap-y-5 lg:grid-cols-2">
               {festivalFields.map((field) => (
                 <div key={field.id}>
@@ -71,6 +127,7 @@ export function CreateFest() {
                   </label>
                   <input
                     id={field.id}
+                    name={field.name}
                     className="mt-[5px] h-[33px] w-full rounded-[15px] border border-[#e0e0e0] bg-white px-[22px] text-[12px] outline-none transition placeholder:text-[#8a8a8a] focus:border-[#0097ce] focus:ring-4 focus:ring-[#0097ce]/15"
                     placeholder={field.placeholder}
                     type="text"
@@ -85,6 +142,7 @@ export function CreateFest() {
                 <div className="mt-[5px] grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                   <input
                     id="festival-start-date"
+                    name="startDate"
                     aria-label="운영 시작일"
                     className="h-[33px] w-full rounded-[15px] border border-[#e0e0e0] bg-white px-[16px] text-[12px] outline-none transition focus:border-[#0097ce] focus:ring-4 focus:ring-[#0097ce]/15"
                     type="date"
@@ -92,6 +150,7 @@ export function CreateFest() {
                   <span className="text-[13px] font-bold text-[#454545]">~</span>
                   <input
                     id="festival-end-date"
+                    name="endDate"
                     aria-label="운영 종료일"
                     className="h-[33px] w-full rounded-[15px] border border-[#e0e0e0] bg-white px-[16px] text-[12px] outline-none transition focus:border-[#0097ce] focus:ring-4 focus:ring-[#0097ce]/15"
                     type="date"
@@ -105,6 +164,7 @@ export function CreateFest() {
                 </label>
                 <textarea
                   id="festival-description"
+                  name="description"
                   className="mt-[5px] h-20 w-full resize-none overflow-hidden rounded-[15px] border border-[#e0e0e0] bg-white px-[22px] py-3 text-[12px] leading-5 outline-none transition placeholder:text-[#8a8a8a] focus:border-[#0097ce] focus:ring-4 focus:ring-[#0097ce]/15"
                   placeholder="축제 설명을 입력하세요 ..."
                 />
@@ -125,12 +185,20 @@ export function CreateFest() {
                     accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
                     onChange={handleImageChange}
                   />
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0097ce] text-xl font-semibold text-white"
-                    aria-hidden="true"
-                  >
-                    +
-                  </span>
+                  {imagePreviewUrl ? (
+                    <img
+                      src={imagePreviewUrl}
+                      alt="축제 이미지 미리보기"
+                      className="h-16 w-24 shrink-0 rounded-[10px] object-cover shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
+                    />
+                  ) : (
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0097ce] text-xl font-semibold text-white"
+                      aria-hidden="true"
+                    >
+                      +
+                    </span>
+                  )}
                   <span className="min-w-0">
                     <span className="block font-semibold text-[#1a1a1a]">
                       {imageName || '축제 이미지를 추가해주세요 ...'}
@@ -143,12 +211,13 @@ export function CreateFest() {
           </form>
         </section>
 
-        <a
-          href="/managePass"
+        <button
+          type="submit"
+          form="create-fest-form"
           className="mx-auto mt-8 flex h-12 w-full max-w-[302px] items-center justify-center rounded-[15px] bg-[#0097ce] px-8 text-[17px] font-medium text-white transition hover:bg-[#0087b8] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce]/40"
         >
           다음
-        </a>
+        </button>
       </section>
     </main>
   )

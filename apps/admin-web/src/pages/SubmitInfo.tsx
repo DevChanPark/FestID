@@ -1,22 +1,30 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { isPreviewableImage, readFileAsDataUrl } from '../lib/filePreview'
+import { saveSubmittedAdminInfo } from '../lib/localState'
 
-const fields: Array<{ id: string; label: string; placeholder: string; type?: string }> = [
-  { id: 'admin-name', label: '이름', placeholder: '이름을 입력하세요 ...' },
-  { id: 'admin-email', label: '이메일', placeholder: '이메일을 입력하세요 ...', type: 'email' },
-  { id: 'admin-role', label: '직책', placeholder: '직책을 입력하세요 ...' },
-  { id: 'admin-org', label: '소속 기관', placeholder: '소속 기관을 입력하세요 ...' }
+const fields: Array<{ id: string; name: string; label: string; placeholder: string; type?: string }> = [
+  { id: 'admin-name', name: 'name', label: '이름', placeholder: '이름을 입력하세요 ...' },
+  { id: 'admin-email', name: 'email', label: '이메일', placeholder: '이메일을 입력하세요 ...', type: 'email' },
+  { id: 'admin-role', name: 'role', label: '직책', placeholder: '직책을 입력하세요 ...' },
+  { id: 'admin-org', name: 'organization', label: '소속 기관', placeholder: '소속 기관을 입력하세요 ...' }
 ]
 
 const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png']
 
-export function SubmitInfo() {
+export function SubmitInfo({
+  onSubmitted = (path: string) => window.location.assign(path)
+}: {
+  onSubmitted?: (path: string) => void
+}) {
   const [selectedFileName, setSelectedFileName] = useState('')
+  const [previewUrl, setPreviewUrl] = useState('')
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
 
     if (!file) {
       setSelectedFileName('')
+      setPreviewUrl('')
       return
     }
 
@@ -24,10 +32,12 @@ export function SubmitInfo() {
       window.alert('PDF, JPG, PNG 파일만 업로드할 수 있습니다.')
       event.target.value = ''
       setSelectedFileName('')
+      setPreviewUrl('')
       return
     }
 
     setSelectedFileName(file.name)
+    setPreviewUrl(isPreviewableImage(file) ? await readFileAsDataUrl(file) : '')
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -38,7 +48,18 @@ export function SubmitInfo() {
       return
     }
 
-    window.location.href = '/waitVC'
+    const formData = new FormData(event.currentTarget)
+
+    saveSubmittedAdminInfo({
+      name: String(formData.get('name') || ''),
+      email: String(formData.get('email') || ''),
+      role: String(formData.get('role') || ''),
+      organization: String(formData.get('organization') || ''),
+      proofFileName: selectedFileName,
+      proofFilePreviewUrl: previewUrl
+    })
+
+    onSubmitted('/waitVC')
   }
 
   return (
@@ -76,9 +97,17 @@ export function SubmitInfo() {
                 accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
               />
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-[#0097ce] text-2xl font-semibold text-[#0097ce]">
-                +
-              </span>
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt="증명 자료 미리보기"
+                  className="h-56 w-full max-w-[280px] rounded-[12px] object-cover shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+                />
+              ) : (
+                <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-[#0097ce] text-2xl font-semibold text-[#0097ce]">
+                  +
+                </span>
+              )}
               <span className="mt-4 max-w-full break-all text-[17px] font-bold">
                 {selectedFileName || '증명 자료를 업로드 해주세요.'}
               </span>
@@ -94,6 +123,7 @@ export function SubmitInfo() {
                 </label>
                 <input
                   id={field.id}
+                  name={field.name}
                   className="mt-3 h-[72px] w-full rounded-[15px] border border-[#e0e0e0] bg-white px-8 text-[15px] outline-none transition placeholder:text-[#8a8a8a] focus:border-[#0097ce] focus:ring-4 focus:ring-[#0097ce]/15"
                   placeholder={field.placeholder}
                   type={field.type ?? 'text'}
