@@ -762,7 +762,7 @@ export class OpenDidWalletFlowService {
       });
     }
 
-    const reusableStatuses = [
+    const reusableStatuses: OpenDidWalletFlowStatus[] = [
       OpenDidWalletFlowStatus.offer_created,
       OpenDidWalletFlowStatus.profile_requested,
       OpenDidWalletFlowStatus.request_submitted,
@@ -792,7 +792,7 @@ export class OpenDidWalletFlowService {
       requestId?: string;
       offerId?: string;
     },
-    reusableStatuses = [
+    reusableStatuses: OpenDidWalletFlowStatus[] = [
       OpenDidWalletFlowStatus.offer_created,
       OpenDidWalletFlowStatus.profile_requested,
       OpenDidWalletFlowStatus.request_submitted,
@@ -817,6 +817,17 @@ export class OpenDidWalletFlowService {
       status: { in: reusableStatuses },
     };
 
+    const orConditions: Prisma.OpenDidWalletTransactionWhereInput[] = [];
+    if (input.txId) {
+      orConditions.push({ txId: input.txId });
+    }
+    if (input.offerId) {
+      orConditions.push({ offerId: input.offerId });
+    }
+    if (input.requestId) {
+      orConditions.push({ requestId: input.requestId });
+    }
+
     const transaction = input.walletTransactionId
       ? await this.prismaService.openDidWalletTransaction.findFirst({
           where: {
@@ -827,14 +838,7 @@ export class OpenDidWalletFlowService {
       : await this.prismaService.openDidWalletTransaction.findFirst({
           where: {
             ...baseWhere,
-            OR: [
-              input.txId ? { txId: input.txId } : undefined,
-              input.offerId ? { offerId: input.offerId } : undefined,
-              input.requestId ? { requestId: input.requestId } : undefined,
-            ].filter(
-              (condition): condition is Prisma.OpenDidWalletTransactionWhereInput =>
-                Boolean(condition),
-            ),
+            OR: orConditions,
           },
           orderBy: { createdAt: 'desc' },
         });
@@ -847,7 +851,7 @@ export class OpenDidWalletFlowService {
       });
     }
 
-    const expirableStatuses = [
+    const expirableStatuses: OpenDidWalletFlowStatus[] = [
       OpenDidWalletFlowStatus.offer_created,
       OpenDidWalletFlowStatus.profile_requested,
       OpenDidWalletFlowStatus.request_submitted,

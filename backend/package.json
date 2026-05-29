@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "description": "CamPass/FestID backend core for mobile ID, DID, VC, and QR verification.",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --pretty false --noEmit --incremental false",
+    "verify:local": "npm run db:validate && npm run typecheck && npm run build && npm run integration:check",
     "start": "node dist/main.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "db:up": "docker compose up -d postgres",

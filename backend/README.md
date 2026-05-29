@@ -19,6 +19,7 @@ Mobile ID SDK verification
 ## First Commands
 
 ```bash
+nvm use
 npm install
 npm run db:up
 npm run db:deploy
@@ -30,12 +31,17 @@ npm run start:dev
 
 ## Local Environment
 
+- Use Node.js 22 through `.nvmrc`. Older Node/npm combinations can make
+  Prisma and TypeScript checks slow or flaky on macOS file-provider backed
+  folders.
 - Postgres runs through `docker-compose.yml` on `localhost:5432`.
 - `.env.example` is the template for local secrets.
 - `.env` is intentionally ignored by Git.
 - Seed/super-admin access can be bootstrapped by setting `SEED_ADMIN_USER_IDS` or `SEED_ADMIN_DIDS` after a real mobile ID login creates the first user.
 - `npm run dev:bootstrap-data` can create demo festival/booth/template data for an existing real user. It does not create mock auth, fake users, or fake credentials.
 - Local file uploads are stored under `uploads/` and served from `/uploads/...`.
+- `npm run verify:local` runs Prisma schema validation, TypeScript typecheck,
+  build, and the core integration readiness check.
 
 See `docs/local-api-flow.md` for the local API flow.
 See `docs/mobile-id-provider-integration.md` for the SDK integration contract.
