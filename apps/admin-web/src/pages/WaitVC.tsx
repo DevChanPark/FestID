@@ -1,13 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
-
-const submittedInfo = [
-  ['이름', '관리자'],
-  ['연락처', 'admin@example.com'],
-  ['직책', '총학생회'],
-  ['소속 기관', '광운대학교'],
-  ['제출 자료', '재학증명서.pdf']
-]
+import { getSubmittedAdminInfo } from '../lib/localState'
 
 const steps = [
   '관리자 검토가 완료되면 승인 결과를 안내드립니다.',
@@ -20,6 +13,15 @@ export function WaitVC({
 }: {
   onAutoRedirect?: (path: string) => void
 }) {
+  const submittedAdminInfo = getSubmittedAdminInfo()
+  const submittedInfo = [
+    ['이름', submittedAdminInfo.name],
+    ['이메일', submittedAdminInfo.email],
+    ['직책', submittedAdminInfo.role],
+    ['소속 기관', submittedAdminInfo.organization],
+    ['제출 자료', submittedAdminInfo.proofFileName]
+  ]
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       onAutoRedirect('/createFest')
