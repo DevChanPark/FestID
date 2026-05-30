@@ -29,11 +29,11 @@ export function AdminDashboardLayout({
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
   return (
-    <main className="min-h-screen bg-white font-sans text-[#1a1a1a]">
-      <div className="flex min-h-screen w-full bg-white">
-        <aside className="hidden w-[260px] shrink-0 border-r border-[#e7e7e7] bg-white px-4 pb-[55px] pt-5 lg:block">
-          <h1 className="font-brand px-8 text-[35px] leading-none text-[#0097ce] mt-2">CamPass</h1>
-          <nav aria-label="대시보드 메뉴" className="mt-[55px] space-y-5">
+    <main className="min-h-dvh bg-white font-sans text-[#1a1a1a]">
+      <div className="flex min-h-dvh w-full bg-white">
+        <aside className="hidden w-[220px] shrink-0 border-r border-[#e7e7e7] bg-white px-3 pb-8 pt-5 lg:block xl:w-[240px] 2xl:w-[260px] 2xl:px-4 2xl:pb-[55px]">
+          <h1 className="font-brand mt-2 px-5 text-[30px] leading-none text-[#0097ce] 2xl:px-8 2xl:text-[35px]">CamPass</h1>
+          <nav aria-label="대시보드 메뉴" className="mt-9 space-y-3 2xl:mt-[55px] 2xl:space-y-5">
             {navItems.map((item) => {
               const active = item.key === activeSection
 
@@ -42,7 +42,7 @@ export function AdminDashboardLayout({
                   key={item.key}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex h-[76px] items-center gap-5 rounded-[10px] px-7 text-[18px] font-semibold transition ${
+                  className={`flex min-h-[60px] items-center gap-3 rounded-[10px] px-4 text-[15px] font-semibold transition xl:text-[16px] 2xl:min-h-[76px] 2xl:gap-5 2xl:px-7 2xl:text-[18px] ${
                     active
                       ? 'bg-[#e8f1ff] text-[#2f80ff]'
                       : 'text-[#313131] hover:bg-[#f5f8ff] hover:text-[#2f80ff]'
@@ -57,12 +57,12 @@ export function AdminDashboardLayout({
         </aside>
 
         <section className="relative flex min-w-0 flex-1 flex-col">
-          <header className="flex min-h-[100px] items-center gap-5 px-5 py-5 sm:px-10">
+          <header className="flex min-h-[76px] items-center gap-3 px-4 py-4 sm:px-6 lg:min-h-[88px] xl:px-8 2xl:min-h-[100px] 2xl:gap-5 2xl:px-10">
             <div className="relative min-w-0 flex-1">
               <SearchIcon />
               <input
                 aria-label="검색창"
-                className="h-[59px] w-full rounded-[30px] border border-[#d8d8d8] bg-white pl-[74px] pr-5 text-[18px] shadow-[0_2px_10px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#bababa] focus:border-[#2f80ff]"
+                className="h-12 w-full rounded-[30px] border border-[#d8d8d8] bg-white pl-14 pr-4 text-[15px] shadow-[0_2px_10px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#bababa] focus:border-[#2f80ff] 2xl:h-[59px] 2xl:pl-[74px] 2xl:pr-5 2xl:text-[18px]"
                 placeholder="검색창"
                 type="search"
               />
@@ -73,7 +73,7 @@ export function AdminDashboardLayout({
                 aria-label="알림"
                 aria-expanded={isNotificationOpen}
                 onClick={() => setIsNotificationOpen((open) => !open)}
-                className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full text-[#313131] transition hover:bg-[#f5f8ff]"
+                className="relative flex h-11 w-11 items-center justify-center rounded-full text-[#313131] transition hover:bg-[#f5f8ff] 2xl:h-[52px] 2xl:w-[52px]"
               >
                 <BellIcon />
                 <span className="absolute right-2 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff4d5a] px-1 text-[12px] font-bold leading-none text-white">
@@ -83,7 +83,7 @@ export function AdminDashboardLayout({
             </div>
             <button
               type="button"
-              className="hidden h-[56px] items-center gap-4 rounded-[10px] border border-[#e1e1e1] bg-white px-5 text-[17px] font-semibold shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition hover:border-[#2f80ff] md:flex"
+              className="hidden h-11 items-center gap-3 rounded-[10px] border border-[#e1e1e1] bg-white px-4 text-[15px] font-semibold shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition hover:border-[#2f80ff] md:flex 2xl:h-[56px] 2xl:gap-4 2xl:px-5 2xl:text-[17px]"
             >
               축제 1
               <ChevronDownIcon />
@@ -91,13 +91,13 @@ export function AdminDashboardLayout({
             <button
               type="button"
               aria-label="프로필"
-              className="hidden h-[61px] w-[61px] items-center justify-center rounded-full border border-[#e1e1e1] bg-white text-[#313131] shadow-[0_2px_10px_rgba(0,0,0,0.06)] sm:flex"
+              className="hidden h-12 w-12 items-center justify-center rounded-full border border-[#e1e1e1] bg-white text-[#313131] shadow-[0_2px_10px_rgba(0,0,0,0.06)] sm:flex 2xl:h-[61px] 2xl:w-[61px]"
             >
               <UserIcon />
             </button>
           </header>
 
-          <div className="flex-1 bg-[#fcfcfc] px-5 py-8 sm:px-10">{children}</div>
+          <div className="min-w-0 flex-1 bg-[#fcfcfc] px-4 py-6 sm:px-6 xl:px-8 2xl:px-10 2xl:py-8">{children}</div>
 
           {isNotificationOpen ? <NotificationPanel /> : null}
         </section>
@@ -110,7 +110,7 @@ export function DashboardContent({ children }: { children: ReactNode }) {
   return (
     <div
       data-dashboard-content
-      className="w-full lg:w-[calc(100%-287px)]"
+      className="w-full max-w-full min-w-0"
     >
       {children}
     </div>
@@ -178,11 +178,11 @@ export function DashboardMetricCard({
   icon: ReactNode
 }) {
   return (
-    <article className="flex min-h-[112px] items-center gap-5 rounded-[10px] bg-white px-6 shadow-[7px_9px_30px_rgba(0,0,0,0.08)]">
+    <article className="flex min-h-[96px] items-center gap-4 rounded-[10px] bg-white px-5 shadow-[7px_9px_30px_rgba(0,0,0,0.08)] 2xl:min-h-[112px] 2xl:gap-5 2xl:px-6">
       <IconWrap>{icon}</IconWrap>
       <div>
         <p className="break-keep text-[15px] font-medium text-[#313131]">{label}</p>
-        <p className="mt-1 text-[31px] font-semibold leading-none">{value}</p>
+        <p className="mt-1 text-[26px] font-semibold leading-none 2xl:text-[31px]">{value}</p>
       </div>
     </article>
   )

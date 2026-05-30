@@ -129,14 +129,14 @@ export function SetPass() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-5 py-8 font-sans text-[#1a1a1a] sm:py-10">
+    <main className="admin-page-shell">
       <h1 className="font-brand mx-auto text-center text-[42px] leading-none text-[#0097ce] sm:text-[49px]">
         CamPass
       </h1>
 
       <section
         aria-labelledby="set-pass-title"
-        className="mx-auto mt-9 w-full max-w-[1076px] rounded-[30px] bg-white px-8 py-10 shadow-panel sm:px-14 lg:min-h-[765px] lg:rounded-[38px]"
+        className="admin-page-card mx-auto mt-6"
       >
         <header className="text-center">
           <h2
@@ -153,7 +153,7 @@ export function SetPass() {
           </p>
         </header>
 
-        <section className="mx-auto mt-9 w-full max-w-[627px] rounded-[37px] bg-[#0097ce] px-8 py-10 text-white sm:px-12 lg:min-h-[457px]">
+        <section className="mx-auto mt-8 w-full max-w-[627px] rounded-[30px] bg-[#0097ce] px-6 py-8 text-white sm:px-10 2xl:min-h-[457px] 2xl:rounded-[37px] 2xl:px-12 2xl:py-10">
           <h3 className="text-[34px] font-medium leading-tight sm:text-[42px]">
             {selectedPass.title}
           </h3>

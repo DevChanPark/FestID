@@ -102,14 +102,14 @@ export function CreateFest({
   }
 
   return (
-    <main className="min-h-screen bg-white px-5 py-8 font-sans text-[#1a1a1a] sm:py-10">
+    <main className="admin-page-shell">
       <h1 className="font-brand mx-auto text-center text-[42px] leading-none text-[#0097ce] sm:text-[49px]">
         CamPass
       </h1>
 
       <section
         aria-labelledby="create-fest-title"
-        className="mx-auto mt-9 w-full max-w-[1076px] rounded-[30px] bg-white px-8 py-10 shadow-panel sm:px-14 lg:min-h-[765px] lg:rounded-[38px]"
+        className="admin-page-card mx-auto mt-6"
       >
         <header>
           <h2

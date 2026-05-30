@@ -74,14 +74,14 @@ export function WaitVC({
   }, [onAutoRedirect])
 
   return (
-    <main className="min-h-screen bg-white px-5 py-8 font-sans text-[#1a1a1a] sm:py-10">
+    <main className="admin-page-shell">
       <h1 className="font-brand mx-auto text-center text-[42px] leading-none text-[#0097ce] sm:text-[49px]">
         CamPass
       </h1>
 
       <section
         aria-labelledby="wait-vc-title"
-        className="mx-auto mt-9 w-full max-w-[1076px] rounded-[30px] bg-white px-8 py-10 shadow-panel sm:px-14 lg:min-h-[765px] lg:rounded-[38px]"
+        className="admin-page-card mx-auto mt-6"
       >
         <header className="text-center">
           <h2
@@ -98,11 +98,11 @@ export function WaitVC({
           </p>
         </header>
 
-        <div className="mt-14 grid items-center gap-10 lg:grid-cols-[300px_1fr] lg:gap-[62px] lg:px-[40px]">
+        <div className="mt-10 grid items-center gap-8 xl:grid-cols-[minmax(220px,300px)_1fr] xl:gap-12 2xl:mt-14 2xl:gap-[62px] 2xl:px-[40px]">
           <section className="flex flex-col items-center text-center" aria-label="제출 완료 상태">
             <h3 className="text-[31px] font-bold leading-none tracking-normal">제출 완료!</h3>
             <p className="mt-3 text-[18px] font-bold text-[#0097ce]">{statusLabel}</p>
-            <div className="mt-8 flex h-[166px] w-[166px] items-center justify-center rounded-full bg-[#35e014]">
+            <div className="mt-6 flex h-32 w-32 items-center justify-center rounded-full bg-[#35e014] 2xl:mt-8 2xl:h-[166px] 2xl:w-[166px]">
               <span
                 className="h-[58px] w-[94px] rotate-[-45deg] border-b-[20px] border-l-[20px] border-white"
                 aria-hidden="true"
@@ -110,7 +110,7 @@ export function WaitVC({
             </div>
           </section>
 
-          <section className="rounded-[15px] border border-[#e0e0e0] bg-white px-8 py-8 lg:min-h-[230px] lg:w-[530px]">
+          <section className="w-full max-w-[530px] rounded-[15px] border border-[#e0e0e0] bg-white px-6 py-6 2xl:min-h-[230px] 2xl:px-8 2xl:py-8">
             <h3 className="text-[31px] font-bold leading-none tracking-normal">제출 정보</h3>
             {isLoading ? (
               <p className="mt-5 text-[15px] font-semibold text-[#5f6b7a]">승인 상태를 확인하는 중입니다.</p>
@@ -129,7 +129,7 @@ export function WaitVC({
           </section>
         </div>
 
-        <div className="mt-16 grid gap-7 lg:grid-cols-2 lg:px-8">
+        <div className="mt-10 grid gap-6 xl:grid-cols-2 xl:px-4 2xl:mt-16 2xl:gap-7 2xl:px-8">
           <InfoCard
             icon={<ClockIcon />}
             title="예상 처리 시간"

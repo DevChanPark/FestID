@@ -149,19 +149,19 @@ export function LoginAdmin({
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-white px-5 py-10 font-sans text-[#313131]">
+    <main className="grid min-h-dvh place-items-center bg-white px-4 py-6 font-sans text-[#313131] sm:px-6 sm:py-8 lg:px-8">
       <section
         aria-labelledby="login-admin-title"
-        className="relative flex min-h-[640px] w-full max-w-[1076px] flex-col rounded-[30px] bg-white px-8 py-10 shadow-login sm:px-14 lg:h-[765px] lg:rounded-[38px]"
+        className="admin-login-card relative flex flex-col"
       >
         <h1 className="font-brand mx-auto text-[48px] leading-none text-[#0097ce] sm:text-[61px]">
           CamPass
         </h1>
 
-        <div className="mx-auto mt-12 w-full max-w-[410px] lg:absolute lg:left-[333px] lg:top-[177px] lg:mt-0">
+        <div className="mx-auto mt-10 w-full max-w-[410px] 2xl:absolute 2xl:left-[333px] 2xl:top-[177px] 2xl:mt-0">
           <p
             id="login-admin-title"
-            className="break-keep text-[26px] font-bold leading-[1.67] tracking-normal text-[#1a1a1a] sm:text-[31px]"
+            className="break-keep text-[24px] font-bold leading-[1.55] tracking-normal text-[#1a1a1a] sm:text-[28px] 2xl:text-[31px]"
           >
             입장부터 혜택까지,
             <br />
@@ -169,8 +169,8 @@ export function LoginAdmin({
           </p>
         </div>
 
-        <div className="mx-auto mt-16 w-full max-w-[410px] lg:absolute lg:left-[333px] lg:top-[366px] lg:mt-0">
-          <h2 className="text-[38px] font-semibold leading-none tracking-normal text-[#313131]">
+        <div className="mx-auto mt-10 w-full max-w-[410px] 2xl:absolute 2xl:left-[333px] 2xl:top-[366px] 2xl:mt-0">
+          <h2 className="text-[32px] font-semibold leading-none tracking-normal text-[#313131] 2xl:text-[38px]">
             Login
           </h2>
           <p className="mt-[15px] break-keep text-[15px] leading-relaxed text-[#313131]">
@@ -178,10 +178,10 @@ export function LoginAdmin({
           </p>
         </div>
 
-        <div className="mx-auto mt-7 flex w-full max-w-[410px] flex-col items-center gap-3 lg:absolute lg:left-[333px] lg:top-[470px] lg:mt-0">
+        <div className="mx-auto mt-7 flex w-full max-w-[410px] flex-col items-center gap-3 2xl:absolute 2xl:left-[333px] 2xl:top-[470px] 2xl:mt-0">
           <button
             type="button"
-            className="mobile-id-button group h-[80px] w-full max-w-[320px] rounded-[40px] bg-[#001d2b] text-white transition duration-200 hover:bg-[#002b3f] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce] disabled:cursor-wait disabled:opacity-70"
+            className="mobile-id-button group h-16 w-full max-w-[320px] rounded-[40px] bg-[#001d2b] text-white transition duration-200 hover:bg-[#002b3f] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce] disabled:cursor-wait disabled:opacity-70 2xl:h-[80px]"
             aria-label="모바일 신분증 로그인"
             disabled={isStarting || isVerifying || isBypassing}
             onClick={handleStart}
@@ -205,12 +205,12 @@ export function LoginAdmin({
         </div>
 
         {message ? (
-          <p className="mx-auto mt-6 max-w-[410px] break-keep text-center text-[14px] font-semibold leading-6 text-[#e24a4a] lg:absolute lg:left-[333px] lg:top-[624px] lg:mt-0">
+          <p className="mx-auto mt-6 max-w-[410px] break-keep text-center text-[14px] font-semibold leading-6 text-[#e24a4a] 2xl:absolute 2xl:left-[333px] 2xl:top-[624px] 2xl:mt-0">
             {message}
           </p>
         ) : null}
 
-        <p className="mx-auto mt-8 text-center text-[16px] font-medium leading-normal tracking-normal sm:text-[19px] lg:absolute lg:left-[378px] lg:top-[690px] lg:mt-0 lg:w-[320px]">
+        <p className="mx-auto mt-8 text-center text-[16px] font-medium leading-normal tracking-normal sm:text-[18px] 2xl:absolute 2xl:left-[378px] 2xl:top-[690px] 2xl:mt-0 2xl:w-[320px] 2xl:text-[19px]">
           모바일 신분증이 없으신가요?{' '}
           <a
             className="whitespace-nowrap font-bold text-[#ff7777] hover:text-[#e85656]"
