@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { saveSubmittedAdminInfo } from '../lib/localState'
 import { WaitVC } from './WaitVC'
@@ -11,6 +11,7 @@ describe('WaitVC', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.clearAllMocks()
     localStorage.clear()
@@ -78,6 +79,33 @@ describe('WaitVC', () => {
     render(<WaitVC onAutoRedirect={onAutoRedirect} />)
 
     await waitFor(() => expect(onAutoRedirect).toHaveBeenCalledWith('/createFest'))
+  })
+
+  it('moves to createFest after 5 seconds while approval is pending', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        profile: {
+          id: 'profile-1',
+          schoolName: '광운대학교',
+          organizationName: '총학생회',
+          proofStatus: 'pending'
+        }
+      })
+    )
+    const onAutoRedirect = vi.fn()
+
+    render(<WaitVC onAutoRedirect={onAutoRedirect} />)
+
+    expect(screen.getByText('테스트 진행을 위해 5초 뒤 축제 생성 화면으로 이동합니다.')).toBeInTheDocument()
+    expect(onAutoRedirect).not.toHaveBeenCalled()
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(onAutoRedirect).toHaveBeenCalledWith('/createFest')
+    vi.useRealTimers()
   })
 })
 

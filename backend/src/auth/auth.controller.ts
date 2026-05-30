@@ -51,6 +51,11 @@ export class AuthController {
     return this.authService.verifyMobileIdAuth(dto);
   }
 
+  @Post('dev/local-admin-session')
+  createLocalAdminSession() {
+    return this.authService.createLocalAdminSession();
+  }
+
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

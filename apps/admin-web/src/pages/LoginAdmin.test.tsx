@@ -22,6 +22,7 @@ describe('LoginAdmin', () => {
     expect(screen.getByText('CamPass')).toBeInTheDocument()
     expect(screen.getByText(/입장부터 혜택까지/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /모바일 신분증 로그인/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /로컬 개발용으로 건너뛰기/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /발급하기/ })).toHaveAttribute(
       'href',
       'https://www.mobileid.go.kr/mip/hps/main.do'
@@ -50,6 +51,33 @@ describe('LoginAdmin', () => {
     expect(screen.queryByText('auth-1')).not.toBeInTheDocument()
     expect(getAccessToken()).toBeNull()
     expect(onAuthenticated).not.toHaveBeenCalled()
+  })
+
+  it('creates a local admin session for development-only web verification', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        accessToken: 'local-token',
+        localOnly: true,
+        user: {
+          id: 'local-admin',
+          did: 'did:campass:user:local-admin',
+          name: '로컬 관리자',
+          isAdult: true
+        }
+      })
+    )
+
+    const onAuthenticated = vi.fn()
+    render(<LoginAdmin onAuthenticated={onAuthenticated} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /로컬 개발용으로 건너뛰기/ }))
+
+    await waitFor(() => expect(onAuthenticated).toHaveBeenCalledWith('/createFest'))
+    expect(getAccessToken()).toBe('local-token')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/auth/dev/local-admin-session',
+      expect.objectContaining({ method: 'POST' })
+    )
   })
 
   it('verifies the mobile ID callback and routes users without an admin profile to profile submission', async () => {

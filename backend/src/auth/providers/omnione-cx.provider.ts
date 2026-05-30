@@ -1,10 +1,13 @@
 import {
   BadGatewayException,
   BadRequestException,
+  HttpException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import { URL } from 'url';
@@ -63,6 +66,8 @@ type OacxTokenParseResponse = {
 
 @Injectable()
 export class OmniOneCxProvider implements MobileIdAuthProvider {
+  private readonly logger = new Logger(OmniOneCxProvider.name);
+
   constructor(private readonly configService: ConfigService) {}
 
   async startAuth(input: StartMobileIdAuthInput): Promise<StartMobileIdAuthOutput> {
@@ -174,6 +179,37 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
   }
 
   async verify(input: VerifyMobileIdAuthInput): Promise<AuthResult> {
+    const callbackTokens = this.extractCallbackTokens(input.result);
+    if (callbackTokens.length > 0) {
+      this.logger.log(
+        `OmniOne callback token candidates: ${JSON.stringify(
+          this.summarizeCallbackResult(input.result),
+        )}`,
+      );
+
+      let lastError: unknown;
+      for (const callbackToken of callbackTokens) {
+        try {
+          return await this.parseResultToken(callbackToken, {
+            callbackResult: input.result,
+            authRequestId: input.authRequestId,
+            source: 'oacx_module_callback',
+          });
+        } catch (error) {
+          lastError = error;
+          this.logger.warn(
+            `OmniOne callback token candidate failed: ${this.toErrorSummary(error)}`,
+          );
+        }
+      }
+
+      this.logger.warn(
+        `No OmniOne callback token candidate could be parsed. Last error: ${this.toErrorSummary(
+          lastError,
+        )}`,
+      );
+    }
+
     const state = this.requireProviderState(input.providerState);
     const authFlow = state.oacxAuthFlow;
 
@@ -210,11 +246,27 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
       });
     }
 
-    const parsed = await this.postOacx<OacxTokenParseResponse>(
-      '/oacx/api/v1.0/trans/token',
-      { token: result.token },
-    );
-    this.assertOacxSuccess(parsed, 'OMNIONE_TOKEN_PARSE_FAILED');
+    return this.parseResultToken(result.token, {
+      result,
+      authRequestId: input.authRequestId,
+    });
+  }
+
+  private async parseResultToken(
+    token: string,
+    raw: Record<string, unknown>,
+  ): Promise<AuthResult> {
+    let parsed: OacxTokenParseResponse;
+    try {
+      parsed = await this.parseOacxToken(token);
+    } catch (error) {
+      const fallbackResult = this.tryCreateAuthResultFromCallbackJwt(token, raw, error);
+      if (fallbackResult) {
+        return fallbackResult;
+      }
+
+      throw error;
+    }
 
     if (!parsed.data) {
       throw new BadGatewayException({
@@ -224,21 +276,61 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
     }
 
     return this.toAuthResult(parsed.data, {
-      result,
+      ...raw,
       parsed,
-      authRequestId: input.authRequestId,
     });
+  }
+
+  private async parseOacxToken(token: string): Promise<OacxTokenParseResponse> {
+    const attempts = [() => this.postOacxToken(token), () => this.getOacxToken(token)];
+    let firstError: unknown;
+
+    for (const attempt of attempts) {
+      try {
+        const parsed = await attempt();
+        this.assertOacxSuccess(parsed, 'OMNIONE_TOKEN_PARSE_FAILED');
+        return parsed;
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+
+    throw firstError;
+  }
+
+  private postOacxToken(token: string): Promise<OacxTokenParseResponse> {
+    return this.postOacx<OacxTokenParseResponse>('/oacx/api/v1.0/trans/token', {
+      token,
+    });
+  }
+
+  private getOacxToken(token: string): Promise<OacxTokenParseResponse> {
+    return this.getOacx<OacxTokenParseResponse>(
+      `/oacx/api/v1.0/trans?token=${encodeURIComponent(token)}`,
+    );
   }
 
   private toAuthResult(
     data: Record<string, unknown>,
     raw: Record<string, unknown>,
   ): AuthResult {
-    const providerUserId = this.stringValue(data.ci) ||
-      this.stringValue(data.userDid) ||
-      this.stringValue(data.vcId) ||
-      this.stringValue(data.cxid) ||
-      this.stringValue(data.txid);
+    const providerUserId =
+      this.findString(data, [
+        'ci',
+        'CI',
+        'userDid',
+        'holderDid',
+        'subjectDid',
+        'did',
+        'vcId',
+        'vcid',
+        'cxid',
+        'cxId',
+        'txid',
+        'txId',
+        'sub',
+        'id',
+      ]) || this.stringValue(raw.providerUserIdFallback);
 
     if (!providerUserId) {
       throw new BadGatewayException({
@@ -248,18 +340,101 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
       });
     }
 
-    const birthDate = this.normalizeBirthDate(this.stringValue(data.birth));
+    const birthDate = this.normalizeBirthDate(
+      this.findString(data, [
+        'birth',
+        'birthDate',
+        'birthday',
+        'dateOfBirth',
+        'birthDay',
+        '생년월일',
+      ]),
+    );
 
     return {
       provider: 'omnione_cx',
       providerUserId,
-      name: this.stringValue(data.name),
-      phone: this.stringValue(data.telno),
+      name: this.findString(data, ['name', 'userName', 'username', '성명', '이름']),
+      phone: this.findString(data, [
+        'telno',
+        'phone',
+        'phoneNumber',
+        'mobile',
+        'mobileNo',
+        '휴대폰번호',
+      ]),
       birthDate,
       isAdult: this.resolveIsAdult(data, birthDate),
       verifiedAt: new Date().toISOString(),
       raw,
     };
+  }
+
+  private tryCreateAuthResultFromCallbackJwt(
+    token: string,
+    raw: Record<string, unknown>,
+    parseError: unknown,
+  ): AuthResult | undefined {
+    if (
+      raw.source !== 'oacx_module_callback' ||
+      !this.isCallbackJwtFallbackAllowed()
+    ) {
+      return undefined;
+    }
+
+    const payload = this.decodeJwtPayload(token);
+    if (!payload) {
+      return undefined;
+    }
+
+    const tokenHash = this.sha256(token);
+    this.logger.warn(
+      `Using local OmniOne callback JWT payload fallback. tokenHash=${tokenHash}, tokenParseError=${this.toErrorSummary(
+        parseError,
+      )}, payloadSummary=${JSON.stringify(this.summarizeCallbackResult(payload))}`,
+    );
+
+    return this.toAuthResult(payload, {
+      authRequestId: raw.authRequestId,
+      source: 'oacx_module_callback_jwt_payload_fallback',
+      providerUserIdFallback: `callback-jwt:${tokenHash}`,
+      tokenHash,
+      tokenParseError: this.toErrorSummary(parseError),
+      payloadSummary: this.summarizeCallbackResult(payload),
+    });
+  }
+
+  private isCallbackJwtFallbackAllowed(): boolean {
+    const configured = this.configService.get<string>(
+      'OMNIONE_CX_CALLBACK_JWT_FALLBACK_ENABLED',
+    );
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+
+    if (configured) {
+      return configured === 'true' && nodeEnv !== 'production';
+    }
+
+    return nodeEnv !== 'production';
+  }
+
+  private decodeJwtPayload(token: string): Record<string, unknown> | undefined {
+    const [, payload] = token.split('.');
+    if (!payload || token.split('.').length !== 3) {
+      return undefined;
+    }
+
+    try {
+      const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const paddedPayload = normalizedPayload.padEnd(
+        normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+        '=',
+      );
+      const decoded = JSON.parse(Buffer.from(paddedPayload, 'base64').toString('utf8'));
+      return this.isRecord(decoded) ? decoded : undefined;
+    } catch (error) {
+      this.logger.warn(`Failed to decode OmniOne callback JWT: ${this.toErrorSummary(error)}`);
+      return undefined;
+    }
   }
 
   private requireProviderState(
@@ -305,6 +480,10 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
 
   private async postOacx<T>(path: string, body: Record<string, unknown>): Promise<T> {
     return this.requestOacx<T>('POST', path, body);
+  }
+
+  private async getOacx<T>(path: string): Promise<T> {
+    return this.requestOacx<T>('GET', path);
   }
 
   private async requestOacx<T>(
@@ -454,6 +633,126 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
     return undefined;
   }
 
+  private extractCallbackTokens(result: unknown): string[] {
+    const candidates: string[] = [];
+    this.collectCallbackTokens(result, candidates);
+
+    const uniqueCandidates = Array.from(new Set(candidates));
+    return uniqueCandidates.sort((left, right) => {
+      const leftScore = this.tokenScore(left);
+      const rightScore = this.tokenScore(right);
+      return rightScore - leftScore;
+    });
+  }
+
+  private collectCallbackTokens(value: unknown, candidates: string[], depth = 0) {
+    if (depth > 4) {
+      return;
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      candidates.push(value.trim());
+      return;
+    }
+
+    if (!this.isRecord(value)) {
+      return;
+    }
+
+    for (const [key, nestedValue] of Object.entries(value)) {
+      if (this.isTokenCandidateKey(key) && typeof nestedValue === 'string') {
+        candidates.push(nestedValue.trim());
+        continue;
+      }
+
+      if (this.isRecord(nestedValue)) {
+        this.collectCallbackTokens(nestedValue, candidates, depth + 1);
+      }
+    }
+  }
+
+  private isTokenCandidateKey(key: string): boolean {
+    return [
+      'token',
+      'resultToken',
+      'authToken',
+      'jwt',
+      'vp',
+      'eVP',
+      'evp',
+      'jws',
+      'idToken',
+      'accessToken',
+    ].includes(key);
+  }
+
+  private tokenScore(token: string): number {
+    const periodCount = (token.match(/\./g) ?? []).length;
+    if (periodCount === 2) {
+      return 100;
+    }
+    if (token.length > 100) {
+      return 50;
+    }
+    return token.length > 0 ? 1 : 0;
+  }
+
+  private summarizeCallbackResult(value: unknown, depth = 0): unknown {
+    if (depth > 3) {
+      return '[max-depth]';
+    }
+
+    if (typeof value === 'string') {
+      return {
+        type: 'string',
+        length: value.length,
+        jwtLike: this.tokenScore(value) >= 100,
+      };
+    }
+
+    if (Array.isArray(value)) {
+      return {
+        type: 'array',
+        length: value.length,
+      };
+    }
+
+    if (!this.isRecord(value)) {
+      return { type: typeof value };
+    }
+
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        this.summarizeCallbackResult(nestedValue, depth + 1),
+      ]),
+    );
+  }
+
+  private toErrorSummary(error: unknown): string {
+    if (error instanceof HttpException) {
+      try {
+        return JSON.stringify(error.getResponse());
+      } catch {
+        return error.message;
+      }
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
   private stringValue(value: unknown): string | undefined {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
   }
@@ -475,8 +774,13 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
     data: Record<string, unknown>,
     birthDate: string | undefined,
   ): boolean | undefined {
-    const directAdultValue =
-      data.isAdult ?? data.adult ?? data.AdultVerify ?? data.adultVerify;
+    const directAdultValue = this.findValue(data, [
+      'isAdult',
+      'adult',
+      'AdultVerify',
+      'adultVerify',
+      '성인여부',
+    ]);
 
     if (typeof directAdultValue === 'boolean') {
       return directAdultValue;
@@ -511,5 +815,58 @@ export class OmniOneCxProvider implements MobileIdAuthProvider {
 
   private withTrailingSlash(value: string): string {
     return value.endsWith('/') ? value : `${value}/`;
+  }
+
+  private findString(
+    value: unknown,
+    targetKeys: string[],
+    depth = 0,
+  ): string | undefined {
+    const found = this.findValue(value, targetKeys, depth);
+    return this.stringValue(found);
+  }
+
+  private findValue(
+    value: unknown,
+    targetKeys: string[],
+    depth = 0,
+  ): unknown {
+    if (depth > 8) {
+      return undefined;
+    }
+
+    if (!this.isRecord(value)) {
+      return undefined;
+    }
+
+    for (const key of targetKeys) {
+      if (value[key] !== undefined && value[key] !== null) {
+        return value[key];
+      }
+    }
+
+    for (const nestedValue of Object.values(value)) {
+      if (this.isRecord(nestedValue)) {
+        const found = this.findValue(nestedValue, targetKeys, depth + 1);
+        if (found !== undefined && found !== null) {
+          return found;
+        }
+      }
+
+      if (Array.isArray(nestedValue)) {
+        for (const item of nestedValue) {
+          const found = this.findValue(item, targetKeys, depth + 1);
+          if (found !== undefined && found !== null) {
+            return found;
+          }
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private sha256(value: string): string {
+    return createHash('sha256').update(value).digest('hex');
   }
 }

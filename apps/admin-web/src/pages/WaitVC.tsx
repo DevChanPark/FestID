@@ -9,9 +9,12 @@ const steps = [
   '승인 완료 시 관리자 VC가 발급되며, 계정이 활성화됩니다.',
   '활성화 후 대시보드에서 축제 생성을 진행할 수 있습니다.'
 ]
+const AUTO_REDIRECT_DELAY_MS = 5000
+
+const defaultAutoRedirect = (path: string) => window.location.assign(path)
 
 export function WaitVC({
-  onAutoRedirect = (path: string) => window.location.assign(path)
+  onAutoRedirect = defaultAutoRedirect
 }: {
   onAutoRedirect?: (path: string) => void
 }) {
@@ -30,6 +33,14 @@ export function WaitVC({
     ['담당 역할', submittedAdminInfo.role],
     ['제출 자료', submittedAdminInfo.proofFileName]
   ]
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      onAutoRedirect('/createFest')
+    }, AUTO_REDIRECT_DELAY_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [onAutoRedirect])
 
   useEffect(() => {
     let isMounted = true
@@ -81,6 +92,9 @@ export function WaitVC({
           </h2>
           <p className="mt-1 break-keep text-[15px] leading-relaxed text-[#313131]">
             승인 완료 시 관리자 VC가 발급되고 축제 생성 화면으로 이동합니다.
+          </p>
+          <p className="mt-2 break-keep text-[14px] font-bold leading-relaxed text-[#0097ce]">
+            테스트 진행을 위해 5초 뒤 축제 생성 화면으로 이동합니다.
           </p>
         </header>
 

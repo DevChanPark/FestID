@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
@@ -23,6 +25,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     private readonly providerConfigService: MobileIdProviderConfigService,
     private readonly providerFactory: MobileIdProviderFactory,
   ) {}
@@ -237,6 +240,106 @@ export class AuthService {
     return { user };
   }
 
+  async createLocalAdminSession() {
+    this.assertLocalAuthBypassAllowed();
+
+    const user = await this.prisma.user.upsert({
+      where: {
+        provider_providerUserId: {
+          provider: 'omnione_cx',
+          providerUserId: 'local-admin-mobile-id',
+        },
+      },
+      create: {
+        provider: 'omnione_cx',
+        providerUserId: 'local-admin-mobile-id',
+        name: '로컬 관리자',
+        phone: '01000000000',
+        birthDate: '19900101',
+        isAdult: true,
+        did: 'did:campass:user:local-admin',
+        didMethod: 'campass',
+      },
+      update: {
+        name: '로컬 관리자',
+        phone: '01000000000',
+        birthDate: '19900101',
+        isAdult: true,
+        did: 'did:campass:user:local-admin',
+        didMethod: 'campass',
+      },
+    });
+
+    await this.prisma.adminProfile.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        schoolName: '광운대학교',
+        organizationName: 'CamPass Local',
+        department: '해커톤팀',
+        position: '운영 관리자',
+        role: '서비스 테스트 관리자',
+        proofStatus: 'approved',
+        proofFileUrl: 'local://admin-proof',
+      },
+      update: {
+        schoolName: '광운대학교',
+        organizationName: 'CamPass Local',
+        department: '해커톤팀',
+        position: '운영 관리자',
+        role: '서비스 테스트 관리자',
+        proofStatus: 'approved',
+        proofFileUrl: 'local://admin-proof',
+      },
+    });
+
+    const existingCredential = await this.prisma.credential.findFirst({
+      where: {
+        userId: user.id,
+        type: 'admin',
+        status: 'issued',
+      },
+    });
+
+    if (!existingCredential) {
+      await this.prisma.credential.create({
+        data: {
+          userId: user.id,
+          subjectDid: this.requireDid(user.did),
+          issuerDid: 'did:campass:issuer:admin',
+          type: 'admin',
+          status: 'issued',
+          claimsJson: {
+            permission: 'admin',
+            role: 'super_admin',
+            schoolName: '광운대학교',
+            organizationName: 'CamPass Local',
+            verified: true,
+            source: 'local_dev_bypass',
+          },
+          credentialProvider: 'internal',
+        },
+      });
+    }
+
+    const accessToken = await this.jwtService.signAsync({
+      sub: user.id,
+      did: user.did,
+      provider: user.provider,
+    });
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        did: user.did,
+        name: user.name,
+        isAdult: user.isAdult,
+      },
+      localOnly: true,
+    };
+  }
+
   private assertValidAuthResult(authResult: AuthResult) {
     if (!authResult.providerUserId || !authResult.provider) {
       throw new BadRequestException({
@@ -244,6 +347,30 @@ export class AuthService {
         message: 'Provider verification did not return a normalized AuthResult.',
       });
     }
+  }
+
+  private assertLocalAuthBypassAllowed() {
+    const enabled = this.configService.get<string>('LOCAL_AUTH_BYPASS_ENABLED');
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    const isEnabled = enabled ? enabled === 'true' : nodeEnv !== 'production';
+
+    if (!isEnabled || nodeEnv === 'production') {
+      throw new ForbiddenException({
+        code: 'LOCAL_AUTH_BYPASS_DISABLED',
+        message: 'Local auth bypass is only available in local development.',
+      });
+    }
+  }
+
+  private requireDid(did: string | null): string {
+    if (!did) {
+      throw new BadRequestException({
+        code: 'USER_DID_REQUIRED',
+        message: 'User DID is required before issuing a credential.',
+      });
+    }
+
+    return did;
   }
 
   private createSecureToken(): string {

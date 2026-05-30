@@ -58,6 +58,17 @@ export async function verifyMobileIdAuth(request: VerifyMobileIdAuthRequest) {
   return response
 }
 
+export async function startLocalAdminSession() {
+  const response = await apiRequest<VerifyMobileIdAuthResponse & { localOnly?: boolean }>(
+    '/auth/dev/local-admin-session',
+    { method: 'POST' }
+  )
+
+  setAccessToken(response.accessToken)
+
+  return response
+}
+
 export async function getCurrentUser() {
   const response = await apiRequest<{ user: CamPassUser }>('/auth/me')
 

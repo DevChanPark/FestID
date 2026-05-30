@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getMyAdminProfile } from '../lib/adminApi'
 import { ApiError } from '../lib/api'
-import { startMobileIdAuth, verifyMobileIdAuth } from '../lib/auth'
+import { startLocalAdminSession, startMobileIdAuth, verifyMobileIdAuth } from '../lib/auth'
 import type { MobileIdStartPayload, StartMobileIdAuthResponse } from '../types/api'
 
 declare global {
@@ -21,6 +21,8 @@ const DEFAULT_MOBILE_ID_ISSUE_URL =
   'https://www.mobileid.go.kr/mip/hps/main.do'
 const MOBILE_ID_ISSUE_URL =
   import.meta.env.VITE_MOBILE_ID_ISSUE_URL || DEFAULT_MOBILE_ID_ISSUE_URL
+const SHOW_LOCAL_AUTH_BYPASS =
+  import.meta.env.DEV || import.meta.env.VITE_SHOW_LOCAL_AUTH_BYPASS === 'true'
 
 export function LoginAdmin({
   onAuthenticated = (path: string) => window.location.assign(path)
@@ -30,6 +32,7 @@ export function LoginAdmin({
   const [authResponse, setAuthResponse] = useState<StartMobileIdAuthResponse | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [isBypassing, setIsBypassing] = useState(false)
   const [message, setMessage] = useState('')
   const launchedAuthRequestIdRef = useRef<string | null>(null)
 
@@ -89,6 +92,23 @@ export function LoginAdmin({
       setMessage(toErrorMessage(error, '모바일 신분증 인증 요청을 시작하지 못했습니다.'))
     } finally {
       setIsStarting(false)
+    }
+  }
+
+  const handleLocalBypass = async () => {
+    setIsBypassing(true)
+    setMessage('')
+    setAuthResponse(null)
+    resetOacxMount()
+    launchedAuthRequestIdRef.current = null
+
+    try {
+      await startLocalAdminSession()
+      onAuthenticated('/createFest')
+    } catch (error) {
+      setMessage(toErrorMessage(error, '로컬 개발용 관리자 세션을 생성하지 못했습니다.'))
+    } finally {
+      setIsBypassing(false)
     }
   }
 
@@ -158,12 +178,12 @@ export function LoginAdmin({
           </p>
         </div>
 
-        <div className="mx-auto mt-7 flex w-full max-w-[410px] justify-center lg:absolute lg:left-[333px] lg:top-[484px] lg:mt-0">
+        <div className="mx-auto mt-7 flex w-full max-w-[410px] flex-col items-center gap-3 lg:absolute lg:left-[333px] lg:top-[470px] lg:mt-0">
           <button
             type="button"
             className="mobile-id-button group h-[80px] w-full max-w-[320px] rounded-[40px] bg-[#001d2b] text-white transition duration-200 hover:bg-[#002b3f] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce] disabled:cursor-wait disabled:opacity-70"
             aria-label="모바일 신분증 로그인"
-            disabled={isStarting || isVerifying}
+            disabled={isStarting || isVerifying || isBypassing}
             onClick={handleStart}
           >
             <MobileIdMark />
@@ -171,15 +191,26 @@ export function LoginAdmin({
               {isStarting ? '인증 요청 중' : isVerifying ? '인증 확인 중' : '모바일 신분증 로그인'}
             </span>
           </button>
+
+          {SHOW_LOCAL_AUTH_BYPASS ? (
+            <button
+              type="button"
+              className="h-11 w-full max-w-[320px] rounded-[22px] border border-[#0097ce] bg-white text-[14px] font-bold text-[#007eac] transition duration-200 hover:bg-[#eef9fd] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce] disabled:cursor-wait disabled:opacity-70"
+              disabled={isStarting || isVerifying || isBypassing}
+              onClick={handleLocalBypass}
+            >
+              {isBypassing ? '로컬 세션 생성 중' : '로컬 개발용으로 건너뛰기'}
+            </button>
+          ) : null}
         </div>
 
         {message ? (
-          <p className="mx-auto mt-6 max-w-[410px] break-keep text-center text-[14px] font-semibold leading-6 text-[#e24a4a] lg:absolute lg:left-[333px] lg:top-[580px] lg:mt-0">
+          <p className="mx-auto mt-6 max-w-[410px] break-keep text-center text-[14px] font-semibold leading-6 text-[#e24a4a] lg:absolute lg:left-[333px] lg:top-[624px] lg:mt-0">
             {message}
           </p>
         ) : null}
 
-        <p className="mx-auto mt-8 text-center text-[16px] font-medium leading-normal tracking-normal sm:text-[19px] lg:absolute lg:left-[378px] lg:top-[640px] lg:mt-0 lg:w-[320px]">
+        <p className="mx-auto mt-8 text-center text-[16px] font-medium leading-normal tracking-normal sm:text-[19px] lg:absolute lg:left-[378px] lg:top-[690px] lg:mt-0 lg:w-[320px]">
           모바일 신분증이 없으신가요?{' '}
           <a
             className="whitespace-nowrap font-bold text-[#ff7777] hover:text-[#e85656]"
@@ -312,19 +343,27 @@ function toResultRecord(result: unknown) {
     return result as Record<string, unknown>
   }
 
+  if (typeof result === 'string' && result.trim()) {
+    return { token: result.trim() }
+  }
+
   return {}
 }
 
 function toErrorMessage(error: unknown, fallback: string) {
+  const brTagPattern = new RegExp('<br\\s*/?>', 'gi')
+  const normalizeMessage = (message: string) =>
+    message.replace(brTagPattern, '\n').replace(/\n{3,}/g, '\n\n').trim()
+
   if (error instanceof ApiError || error instanceof Error) {
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       return '백엔드 인증 API에 연결할 수 없습니다. backend 서버(localhost:3000)를 먼저 실행해 주세요.'
     }
 
-    return error.message || fallback
+    return normalizeMessage(error.message || fallback)
   }
 
-  return fallback
+  return normalizeMessage(fallback)
 }
 
 function MobileIdMark() {
