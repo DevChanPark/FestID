@@ -1,0 +1,7 @@
+{
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "yaml.schemas": {
+    "https://xcodegen.com/schema/project.json": "project.yml"
+  }
+}
