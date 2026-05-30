@@ -67,6 +67,33 @@ The bootstrap script only creates operating data:
 
 It does not create auth sessions, fake users, or fake credentials.
 
+### Local Post-Mobile-ID State For Web Testing
+
+When a real mobile ID app/account is not available, keep the production auth
+flow intact and create only the state that would exist **after** mobile ID
+verification:
+
+```bash
+npm run dev:local-auth-state
+```
+
+This local-only script creates:
+
+- a CamPass admin user with DID
+- approved admin profile
+- issued super_admin Admin VC
+- demo active festival
+- pass templates and booths
+- attendee user with Entry/Adult/Student VCs
+- staff user with Staff VC and approved staff request
+- short QR token for local verification API checks
+
+The script prints an `adminWebSnippet`. Paste it into the browser console on the
+admin web app to store the local access token and move to `/createFest`.
+
+This is not a mock mobile ID API. It does not add a login endpoint and should
+not be used outside local integration testing.
+
 ## 4. Admin Web Flow
 
 ```txt

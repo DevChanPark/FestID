@@ -18,6 +18,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:validate": "prisma validate",
     "dev:bootstrap-data": "node scripts/bootstrap-dev-data.js",
+    "dev:local-auth-state": "node scripts/bootstrap-local-auth-state.js",
     "opendid:clone": "bash scripts/opendid/clone-components.sh",
     "opendid:prepare": "bash scripts/opendid/prepare-compose.sh",
     "opendid:patch-local": "bash scripts/opendid/patch-local-config.sh",

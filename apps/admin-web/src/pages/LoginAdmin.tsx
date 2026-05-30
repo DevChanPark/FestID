@@ -28,7 +28,6 @@ export function LoginAdmin({
   onAuthenticated?: (path: string) => void
 }) {
   const [authResponse, setAuthResponse] = useState<StartMobileIdAuthResponse | null>(null)
-  const [sdkResult, setSdkResult] = useState<unknown>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [message, setMessage] = useState('')
@@ -51,7 +50,7 @@ export function LoginAdmin({
         launchedAuthRequestIdRef.current = authResponse.authRequestId
         await launchOacxModule(authResponse.payload, (result) => {
           if (!cancelled) {
-            setSdkResult(result)
+            void completeMobileIdAuth(authResponse, result)
           }
         })
       } catch (error) {
@@ -73,7 +72,7 @@ export function LoginAdmin({
   const handleStart = async () => {
     setIsStarting(true)
     setMessage('')
-    setSdkResult(null)
+    resetOacxMount()
     launchedAuthRequestIdRef.current = null
 
     try {
@@ -93,20 +92,16 @@ export function LoginAdmin({
     }
   }
 
-  const handleVerify = async () => {
-    if (!authResponse) {
-      return
-    }
-
+  async function completeMobileIdAuth(response: StartMobileIdAuthResponse, result: unknown) {
     setIsVerifying(true)
     setMessage('')
 
     try {
       await verifyMobileIdAuth({
-        provider: authResponse.provider,
-        authRequestId: authResponse.authRequestId,
-        state: authResponse.state,
-        result: toResultRecord(sdkResult)
+        provider: response.provider,
+        authRequestId: response.authRequestId,
+        state: response.state,
+        result: toResultRecord(result)
       })
 
       const profile = await getMyAdminProfile().catch((error) => {
@@ -127,17 +122,10 @@ export function LoginAdmin({
       setMessage(toErrorMessage(error, '모바일 신분증 인증 결과를 확인하지 못했습니다.'))
     } finally {
       setIsVerifying(false)
+      setAuthResponse(null)
+      launchedAuthRequestIdRef.current = null
+      resetOacxMount()
     }
-  }
-
-  const closeDialog = () => {
-    if (isStarting || isVerifying) {
-      return
-    }
-
-    setAuthResponse(null)
-    setSdkResult(null)
-    setMessage('')
   }
 
   return (
@@ -175,12 +163,12 @@ export function LoginAdmin({
             type="button"
             className="mobile-id-button group h-[80px] w-full max-w-[320px] rounded-[40px] bg-[#001d2b] text-white transition duration-200 hover:bg-[#002b3f] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce] disabled:cursor-wait disabled:opacity-70"
             aria-label="모바일 신분증 로그인"
-            disabled={isStarting}
+            disabled={isStarting || isVerifying}
             onClick={handleStart}
           >
             <MobileIdMark />
             <span className="text-[18px] font-bold tracking-normal">
-              {isStarting ? '인증 요청 중' : '모바일 신분증 로그인'}
+              {isStarting ? '인증 요청 중' : isVerifying ? '인증 확인 중' : '모바일 신분증 로그인'}
             </span>
           </button>
         </div>
@@ -205,97 +193,11 @@ export function LoginAdmin({
       </section>
 
       {authResponse ? (
-        <MobileIdDialog
-          authResponse={authResponse}
-          isVerifying={isVerifying}
-          message={message}
-          onClose={closeDialog}
-          onVerify={handleVerify}
-        />
+        <div className="pointer-events-none fixed inset-0 z-50">
+          <div id="oacxDiv" className="pointer-events-auto" />
+        </div>
       ) : null}
     </main>
-  )
-}
-
-function MobileIdDialog({
-  authResponse,
-  isVerifying,
-  message,
-  onClose,
-  onVerify
-}: {
-  authResponse: StartMobileIdAuthResponse
-  isVerifying: boolean
-  message: string
-  onClose: () => void
-  onVerify: () => void
-}) {
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-5" role="presentation">
-      <section
-        aria-labelledby="mobile-id-auth-title"
-        aria-modal="true"
-        className="w-full max-w-[430px] overflow-hidden rounded-[18px] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
-        role="dialog"
-      >
-        <div className="bg-[#001d2b] px-6 py-5 text-white">
-          <p className="text-[13px] font-semibold text-white/70">OmniOne CX</p>
-          <h2 id="mobile-id-auth-title" className="mt-1 text-[22px] font-bold">
-            모바일 신분증 표준인증
-          </h2>
-        </div>
-
-        <div className="px-6 py-7 text-center">
-          <div id="oacxDiv" className="mx-auto mb-5 min-h-[1px] w-full" />
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[22px] bg-[#f0f8ff]">
-            <MobileIdMark />
-          </div>
-          <p className="mt-5 break-keep text-[17px] font-bold text-[#1a1a1a]">
-            모바일 신분증 앱에서 인증 요청을 완료해주세요.
-          </p>
-          <dl className="mt-5 grid gap-2 rounded-[12px] bg-[#f8fafc] px-4 py-4 text-left text-[13px] text-[#5f6b76]">
-            <div className="grid grid-cols-[96px_1fr] gap-3">
-              <dt className="font-bold text-[#313131]">요청 ID</dt>
-              <dd className="break-all">{authResponse.authRequestId}</dd>
-            </div>
-            {authResponse.payload?.cxId ? (
-              <div className="grid grid-cols-[96px_1fr] gap-3">
-                <dt className="font-bold text-[#313131]">CX ID</dt>
-                <dd className="break-all">{String(authResponse.payload.cxId)}</dd>
-              </div>
-            ) : null}
-            <div className="grid grid-cols-[96px_1fr] gap-3">
-              <dt className="font-bold text-[#313131]">방식</dt>
-              <dd>{authResponse.payload?.requestType || 'WEB2APP'}</dd>
-            </div>
-          </dl>
-          {message ? (
-            <p className="mt-4 break-keep text-[13px] font-semibold leading-5 text-[#e24a4a]">
-              {message}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="grid grid-cols-2 border-t border-[#e6e9ee]">
-          <button
-            type="button"
-            className="h-14 border-r border-[#e6e9ee] text-[16px] font-semibold text-[#4b5563] transition hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isVerifying}
-            onClick={onClose}
-          >
-            닫기
-          </button>
-          <button
-            type="button"
-            className="h-14 text-[16px] font-semibold text-[#0097ce] transition hover:bg-[#f4fbfe] disabled:cursor-wait disabled:opacity-60"
-            disabled={isVerifying}
-            onClick={onVerify}
-          >
-            {isVerifying ? '확인 중' : '인증 완료 확인'}
-          </button>
-        </div>
-      </section>
-    </div>
   )
 }
 
@@ -336,9 +238,11 @@ async function launchOacxModule(
 
   const webBaseUrl = payload.webBaseUrl.replace(/\/+$/, '')
 
-  loadCss(`${webBaseUrl}/oacx-ux.css`)
-  await loadScript(`${webBaseUrl}/oacx-vendor.js`)
-  await loadScript(`${webBaseUrl}/oacx-ux.js`)
+  if (!window.OACX?.LOAD_MODULE) {
+    loadCss(`${webBaseUrl}/oacx-ux.css`)
+    await loadScript(`${webBaseUrl}/oacx-vendor.js`)
+    await loadScript(`${webBaseUrl}/oacx-ux.js`)
+  }
 
   if (!document.getElementById('oacxDiv')) {
     throw new Error('OmniOne CX 인증창 영역을 찾지 못했습니다.')
@@ -359,6 +263,13 @@ async function launchOacxModule(
     },
     onResult
   )
+}
+
+function resetOacxMount() {
+  const mount = document.getElementById('oacxDiv')
+  if (mount) {
+    mount.replaceChildren()
+  }
 }
 
 function loadCss(href: string) {
