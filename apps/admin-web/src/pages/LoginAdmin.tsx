@@ -193,8 +193,8 @@ export function LoginAdmin({
       </section>
 
       {authResponse ? (
-        <div className="pointer-events-none fixed inset-0 z-50">
-          <div id="oacxDiv" className="pointer-events-auto" />
+        <div className="fixed inset-0 z-50">
+          <div id="oacxDiv" className="h-full w-full" />
         </div>
       ) : null}
     </main>
