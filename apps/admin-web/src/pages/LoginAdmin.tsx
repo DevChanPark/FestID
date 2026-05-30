@@ -158,7 +158,7 @@ export function LoginAdmin({
           CamPass
         </h1>
 
-        <div className="mx-auto mt-10 w-full max-w-[410px] 2xl:absolute 2xl:left-[333px] 2xl:top-[177px] 2xl:mt-0">
+        <div className="mx-auto mt-10 w-full max-w-[410px] 2xl:absolute 2xl:left-[333px] 2xl:top-[140px] 2xl:mt-0">
           <p
             id="login-admin-title"
             className="break-keep text-[24px] font-bold leading-[1.55] tracking-normal text-[#1a1a1a] sm:text-[28px] 2xl:text-[31px]"
@@ -169,7 +169,7 @@ export function LoginAdmin({
           </p>
         </div>
 
-        <div className="mx-auto mt-10 w-full max-w-[410px] 2xl:absolute 2xl:left-[333px] 2xl:top-[366px] 2xl:mt-0">
+        <div className="mx-auto mt-10 w-full max-w-[410px] 2xl:absolute 2xl:left-[333px] 2xl:top-[320px] 2xl:mt-0">
           <h2 className="text-[32px] font-semibold leading-none tracking-normal text-[#313131] 2xl:text-[38px]">
             Login
           </h2>
@@ -178,7 +178,7 @@ export function LoginAdmin({
           </p>
         </div>
 
-        <div className="mx-auto mt-7 flex w-full max-w-[410px] flex-col items-center gap-3 2xl:absolute 2xl:left-[333px] 2xl:top-[470px] 2xl:mt-0">
+        <div className="mx-auto mt-7 flex w-full max-w-[410px] flex-col items-center gap-3 2xl:absolute 2xl:left-[333px] 2xl:top-[405px] 2xl:mt-0">
           <button
             type="button"
             className="mobile-id-button group h-16 w-full max-w-[320px] rounded-[40px] bg-[#001d2b] text-white transition duration-200 hover:bg-[#002b3f] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#0097ce] disabled:cursor-wait disabled:opacity-70 2xl:h-[80px]"
@@ -202,6 +202,17 @@ export function LoginAdmin({
               {isBypassing ? '로컬 세션 생성 중' : '로컬 개발용으로 건너뛰기'}
             </button>
           ) : null}
+          <p className="mt-3 text-center text-[16px] font-medium leading-normal tracking-normal sm:text-[18px] 2xl:w-[320px]">
+            모바일 신분증이 없으신가요?{' '}
+            <a
+              className="whitespace-nowrap font-bold text-[#ff7777] hover:text-[#e85656]"
+              href={MOBILE_ID_ISSUE_URL}
+              rel="noreferrer"
+              target="_blank"
+            >
+              발급하기
+            </a>
+          </p>
         </div>
 
         {message ? (
@@ -210,17 +221,7 @@ export function LoginAdmin({
           </p>
         ) : null}
 
-        <p className="mx-auto mt-8 text-center text-[16px] font-medium leading-normal tracking-normal sm:text-[18px] 2xl:absolute 2xl:left-[378px] 2xl:top-[690px] 2xl:mt-0 2xl:w-[320px] 2xl:text-[19px]">
-          모바일 신분증이 없으신가요?{' '}
-          <a
-            className="whitespace-nowrap font-bold text-[#ff7777] hover:text-[#e85656]"
-            href={MOBILE_ID_ISSUE_URL}
-            rel="noreferrer"
-            target="_blank"
-          >
-            발급하기
-          </a>
-        </p>
+        
       </section>
 
       {authResponse ? (
