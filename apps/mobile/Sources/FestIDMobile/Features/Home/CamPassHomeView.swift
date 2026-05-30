@@ -1,12 +1,49 @@
 import SwiftUI
 
+struct CamPassRootView: View {
+    @State private var selectedTab: CamPassTab = .home
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            Tab(CamPassHomeView.Copy.home, systemImage: "house.fill", value: CamPassTab.home) {
+                NavigationStack {
+                    CamPassHomeView()
+                }
+            }
+
+            Tab(CamPassHomeView.Copy.festival, systemImage: "building.columns.fill", value: CamPassTab.festival) {
+                NavigationStack {
+                    FestivalListView()
+                }
+            }
+
+            Tab(CamPassHomeView.Copy.user, systemImage: "person", value: CamPassTab.user) {
+                NavigationStack {
+                    CamPassUserView()
+                }
+            }
+
+            Tab("검색", systemImage: "magnifyingglass", value: CamPassTab.search, role: .search) {
+                NavigationStack {
+                    CamPassSearchView()
+                }
+            }
+        }
+        .tint(Color(hex: 0x0088FF))
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
 struct CamPassHomeView: View {
-    @State private var isFestivalTabPresented = false
+    private static let posterWidth: CGFloat = 220
+    private static let posterHeight: CGFloat = 293
+
+    private let posters = FestivalPoster.localPosters
 
     enum Copy {
         static let brand = "CamPass"
         static let popular = "\u{C9C0}\u{AE08} \u{C778}\u{AE30}"
-        static let festivalName = "\u{AD11}\u{C6B4}\u{B300}\u{D559}\u{AD50} \u{B300}\u{B3D9}\u{C81C}"
         static let myFestival = "\u{B098}\u{C758} \u{CD95}\u{C81C}"
         static let myFestivalCaption = "\u{C785}\u{C7A5}\u{AD8C}\u{BD80}\u{D130} \u{AD7F}\u{C988} \u{AD50}\u{D658}\u{AD8C}\u{AE4C}\u{C9C0} \u{D55C} \u{BC88}\u{C5D0} \u{D655}\u{C778}\u{D574}\u{BCF4}\u{C138}\u{C694}."
         static let nearby = "\u{ADFC}\u{CC98} \u{CD95}\u{C81C} \u{BAA8}\u{C74C}"
@@ -17,110 +54,104 @@ struct CamPassHomeView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Color(hex: 0xE6E6ED)
-                .ignoresSafeArea()
+        GeometryReader { proxy in
+            ZStack(alignment: .bottom) {
+                Color(hex: 0xE6E6ED)
+                    .ignoresSafeArea()
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(Copy.brand)
-                        .font(.system(size: 29.243, weight: .black, design: .rounded))
-                        .italic()
-                        .foregroundStyle(Color(hex: 0x0097CE))
-                        .padding(.top, 62)
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(Copy.brand)
+                            .font(.custom(FestIDTheme.Fonts.brand, size: 29.243))
+                            .foregroundStyle(Color(hex: 0x0097CE))
+                            .padding(.top, 62)
 
-                    sectionTitle(Copy.popular)
-                        .padding(.top, 25)
+                        sectionTitle(Copy.popular)
+                            .padding(.top, 25)
 
-                    HStack(alignment: .top, spacing: 16) {
-                        NavigationLink {
-                            FestivalDetailView()
-                        } label: {
-                            posterColumn(title: Copy.festivalName, poster: .ainesLarge)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 16) {
+                                ForEach(Array(posters.enumerated()), id: \.offset) { index, poster in
+                                    NavigationLink {
+                                        festivalDetailView(for: poster, index: index)
+                                    } label: {
+                                        posterColumn(title: poster.title, poster: poster.style, fillsPoster: true)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
-                        .buttonStyle(.plain)
+                        .padding(.top, 8)
+                        .contentMargins(.horizontal, 20, for: .scrollContent)
+                        .scrollClipDisabled()
+                        .padding(.horizontal, -20)
 
-                        NavigationLink {
-                            FestivalDetailView(hasIssuedPass: false)
-                        } label: {
-                            posterColumn(title: Copy.festivalName, poster: .violetLarge)
+                        HStack(spacing: 4) {
+                            sectionTitle(Copy.myFestival)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color(hex: 0x727272))
                         }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.top, 8)
+                        .padding(.top, 39)
 
-                    HStack(spacing: 4) {
-                        sectionTitle(Copy.myFestival)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 17, weight: .semibold))
+                        Text(Copy.myFestivalCaption)
+                            .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(Color(hex: 0x727272))
-                    }
-                    .padding(.top, 39)
+                            .lineLimit(1)
+                            .padding(.top, 8)
 
-                    Text(Copy.myFestivalCaption)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color(hex: 0x727272))
-                        .lineLimit(1)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                FestivalPosterCard(style: .greenWide)
+                                    .frame(width: 246, height: 104)
+                                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                                FestivalPosterCard(style: .orangeWide)
+                                    .frame(width: 246, height: 104)
+                                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            }
+                        }
                         .padding(.top, 8)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
-                            FestivalPosterCard(style: .greenWide)
-                                .frame(width: 246, height: 104)
-                            FestivalPosterCard(style: .orangeWide)
-                                .frame(width: 246, height: 104)
+                        HStack(spacing: 4) {
+                            sectionTitle(Copy.nearby)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color(hex: 0x727272))
                         }
-                    }
-                    .padding(.top, 8)
+                        .padding(.top, 39)
 
-                    HStack(spacing: 4) {
-                        sectionTitle(Copy.nearby)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 17, weight: .semibold))
+                        Text(Copy.nearbyCaption)
+                            .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(Color(hex: 0x727272))
-                    }
-                    .padding(.top, 39)
+                            .lineLimit(1)
+                            .padding(.top, 8)
 
-                    Text(Copy.nearbyCaption)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color(hex: 0x727272))
-                        .lineLimit(1)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 16) {
+                                ForEach(Array(posters.enumerated()), id: \.offset) { index, poster in
+                                    NavigationLink {
+                                        festivalDetailView(for: poster, index: index)
+                                    } label: {
+                                        FestivalPosterCard(style: poster.style, fillsImage: true)
+                                            .frame(width: Self.posterWidth, height: Self.posterHeight)
+                                            .fixedSize()
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
                         .padding(.top, 8)
-
-                    HStack(alignment: .top, spacing: 16) {
-                        NavigationLink {
-                            FestivalDetailView()
-                        } label: {
-                            FestivalPosterCard(style: .ainesLarge)
-                                .frame(width: 220, height: 216)
-                        }
-                        .buttonStyle(.plain)
-
-                        NavigationLink {
-                            FestivalDetailView(hasIssuedPass: false)
-                        } label: {
-                            FestivalPosterCard(style: .violetLarge)
-                                .frame(width: 220, height: 216)
-                        }
-                        .buttonStyle(.plain)
+                        .contentMargins(.horizontal, 20, for: .scrollContent)
+                        .scrollClipDisabled()
+                        .padding(.horizontal, -20)
+                        .padding(.bottom, 138)
                     }
-                    .padding(.top, 8)
-                    .padding(.bottom, 138)
-                }
-                .padding(.horizontal, 20)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            CamPassTabBar(selectedTab: .home) { tab in
-                if tab == .festival {
-                    isFestivalTabPresented = true
+                    .padding(.horizontal, 20)
+                    .frame(width: proxy.size.width, alignment: .leading)
                 }
             }
-                .padding(.bottom, 34)
         }
-        .navigationDestination(isPresented: $isFestivalTabPresented) {
-            FestivalListView()
-        }
+        .ignoresSafeArea(edges: .top)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
     }
@@ -133,123 +164,160 @@ struct CamPassHomeView: View {
             .frame(height: 25, alignment: .leading)
     }
 
-    private func posterColumn(title: String, poster: FestivalPosterStyle) -> some View {
+    private func posterColumn(title: String, poster: FestivalPosterStyle, fillsPoster: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(Color(hex: 0x727272))
                 .lineLimit(1)
 
-            FestivalPosterCard(style: poster)
-                .frame(width: 220, height: 293)
+            FestivalPosterCard(style: poster, fillsImage: fillsPoster)
+                .frame(width: Self.posterWidth, height: Self.posterHeight)
+                .fixedSize()
         }
-        .frame(width: 220, alignment: .leading)
+        .frame(width: Self.posterWidth, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func festivalDetailView(for poster: FestivalPoster, index: Int) -> FestivalDetailView {
+        FestivalDetailView(festivalTitle: poster.title, hasIssuedPass: index == 1 ? false : true, posterStyle: poster.style)
     }
 }
 
-enum CamPassTab {
+enum CamPassTab: Hashable {
     case home
     case festival
     case user
+    case search
 }
 
-struct CamPassTabBar: View {
-    let selectedTab: CamPassTab
-    let onSelect: (CamPassTab) -> Void
-
+private struct CamPassUserView: View {
     var body: some View {
-        HStack(spacing: 16) {
-            HStack(spacing: 25) {
-                Button {
-                    onSelect(.home)
-                } label: {
-                    tabItem(title: CamPassHomeView.Copy.home, systemImage: "house.fill", isSelected: selectedTab == .home)
-                        .frame(width: selectedTab == .home ? 106 : 64, height: 54)
-                        .background(selectedTab == .home ? Color(hex: 0xE4E4E4) : Color.clear, in: Capsule())
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    onSelect(.festival)
-                } label: {
-                    tabItem(title: CamPassHomeView.Copy.festival, systemImage: "building.columns.fill", isSelected: selectedTab == .festival)
-                        .frame(width: selectedTab == .festival ? 106 : 64, height: 54)
-                        .background(selectedTab == .festival ? Color(hex: 0xE4E4E4) : Color.clear, in: Capsule())
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    onSelect(.user)
-                } label: {
-                    tabItem(title: CamPassHomeView.Copy.user, systemImage: "person", isSelected: selectedTab == .user)
-                        .frame(width: selectedTab == .user ? 106 : 64, height: 54)
-                        .background(selectedTab == .user ? Color(hex: 0xE4E4E4) : Color.clear, in: Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-            .frame(width: 290, height: 62)
-            .background(.white.opacity(0.72), in: Capsule())
-            .festGlassCard(in: Capsule())
-
-            Button(action: {}) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 27, weight: .medium))
-                    .foregroundStyle(Color(hex: 0x1A1A1A))
-                    .frame(width: 62, height: 62)
-            }
-            .buttonStyle(.plain)
-            .background(.white.opacity(0.72), in: Circle())
-            .festGlassCard(in: Circle())
-        }
-        .frame(maxWidth: .infinity)
+        Color(hex: 0xE6E6ED)
+            .ignoresSafeArea()
     }
+}
 
-    private func tabItem(title: String, systemImage: String, isSelected: Bool) -> some View {
-        VStack(spacing: 2) {
-            Image(systemName: systemImage)
-                .font(.system(size: 21, weight: .semibold))
-                .frame(height: 26)
-
-            Text(title)
-                .font(.system(size: 10, weight: .semibold))
-                .frame(height: 12)
-        }
-        .foregroundStyle(isSelected ? Color(hex: 0x0088FF) : Color(hex: 0x1A1A1A))
+private struct CamPassSearchView: View {
+    var body: some View {
+        Color(hex: 0xE6E6ED)
+            .ignoresSafeArea()
     }
 }
 
 struct FestivalPosterCard: View {
     let style: FestivalPosterStyle
+    var fillsImage = false
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .fill(style.background)
+        GeometryReader { proxy in
+            ZStack {
+                if let posterImage {
+                    if !fillsImage {
+                        Color(hex: 0xF4F4F6)
+                    }
 
-            style.accent
+                    Image(uiImage: posterImage)
+                        .resizable()
+                        .aspectRatio(contentMode: fillsImage ? .fill : .fit)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                } else {
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .fill(style.background)
 
-            VStack(alignment: .leading) {
-                Text(style.date)
-                    .font(.system(size: style.isWide ? 10 : 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.88))
-                    .lineSpacing(-2)
+                    style.accent
 
-                Spacer()
+                    VStack(alignment: .leading) {
+                        Text(style.date)
+                            .font(.system(size: style.isWide ? 10 : 17, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.88))
+                            .lineSpacing(-2)
 
-                Text(style.title)
-                    .font(.system(size: style.isWide ? 24 : 42, weight: .black, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.86))
-                    .rotationEffect(.degrees(style.titleRotation))
-                    .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
+                        Spacer()
 
-                Text(style.subtitle)
-                    .font(.system(size: style.isWide ? 9 : 12, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.78))
+                        Text(style.title)
+                            .font(.system(size: style.isWide ? 24 : 42, weight: .black, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.86))
+                            .rotationEffect(.degrees(style.titleRotation))
+                            .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
+
+                        Text(style.subtitle)
+                            .font(.system(size: style.isWide ? 9 : 12, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.78))
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                }
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+    }
+
+    private var posterImage: UIImage? {
+        guard let imageName = style.imageName else {
+            return nil
+        }
+
+        if let image = UIImage(named: imageName) {
+            return image
+        }
+
+        if let image = imageFromBundle(named: imageName) {
+            return image
+        }
+
+        return imageFromBundle(named: imageName, subdirectory: "images")
+    }
+
+    private func imageFromBundle(named imageName: String, subdirectory: String? = nil) -> UIImage? {
+        guard let url = Bundle.main.url(
+            forResource: imageName,
+            withExtension: "jpg",
+            subdirectory: subdirectory
+        ) else {
+            return nil
+        }
+
+        return UIImage(contentsOfFile: url.path)
+    }
+}
+
+struct FestivalPoster: Identifiable {
+    let title: String
+    let style: FestivalPosterStyle
+
+    var id: String {
+        title
+    }
+
+    static var localPosters: [FestivalPoster] {
+        let urls = resourceURLs(in: nil) + resourceURLs(in: "images")
+        let uniqueURLs = Dictionary(grouping: urls, by: \.lastPathComponent)
+            .compactMap { $0.value.first }
+
+        let posters: [FestivalPoster] = uniqueURLs.map { url in
+            let imageName = url.deletingPathExtension().lastPathComponent
+            let title = imageName.precomposedStringWithCanonicalMapping
+            return FestivalPoster(title: title, style: .image(name: imageName))
+        }
+        .sorted { (lhs: FestivalPoster, rhs: FestivalPoster) -> Bool in
+            lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+        }
+
+        if posters.isEmpty {
+            return (1...7).map { index in
+                let title = "image\(index)"
+                return FestivalPoster(title: title, style: .image(name: title))
+            }
+        }
+
+        return posters
+    }
+
+    private static func resourceURLs(in subdirectory: String?) -> [URL] {
+        Bundle.main.urls(forResourcesWithExtension: "jpg", subdirectory: subdirectory) ?? []
     }
 }
 
@@ -258,12 +326,21 @@ enum FestivalPosterStyle {
     case violetLarge
     case greenWide
     case orangeWide
+    case image(name: String)
+
+    var imageName: String? {
+        if case let .image(name) = self {
+            return name
+        }
+
+        return nil
+    }
 
     var isWide: Bool {
         switch self {
         case .greenWide, .orangeWide:
             return true
-        case .ainesLarge, .violetLarge:
+        case .ainesLarge, .violetLarge, .image:
             return false
         }
     }
@@ -276,6 +353,8 @@ enum FestivalPosterStyle {
             return "Sep 25-26"
         case .orangeWide:
             return "2025"
+        case .image:
+            return ""
         }
     }
 
@@ -289,6 +368,8 @@ enum FestivalPosterStyle {
             return "Festival"
         case .orangeWide:
             return "Stage"
+        case .image:
+            return ""
         }
     }
 
@@ -302,6 +383,8 @@ enum FestivalPosterStyle {
             return "MY PASS"
         case .orangeWide:
             return "LINE UP"
+        case .image:
+            return ""
         }
     }
 
@@ -309,7 +392,7 @@ enum FestivalPosterStyle {
         switch self {
         case .ainesLarge:
             return -13
-        default:
+        case .violetLarge, .greenWide, .orangeWide, .image:
             return 0
         }
     }
@@ -337,6 +420,12 @@ enum FestivalPosterStyle {
         case .orangeWide:
             return LinearGradient(
                 colors: [Color(hex: 0xF6B27A), Color(hex: 0xF7D2B8), Color(hex: 0xFFF4E8)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .image:
+            return LinearGradient(
+                colors: [Color(hex: 0xD9D9E1), Color(hex: 0xEFEFF4)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -390,6 +479,8 @@ enum FestivalPosterStyle {
                 .frame(width: 110, height: 110)
                 .blur(radius: 4)
                 .offset(x: -54, y: 34)
+        case .image:
+            EmptyView()
         }
     }
 }

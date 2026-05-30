@@ -38,6 +38,7 @@ struct HomeView: View {
         )
     }
 
+    @ViewBuilder
     private var quickActions: some View {
         if #available(iOS 26.0, *) {
             GlassEffectContainer(spacing: 12) {

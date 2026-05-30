@@ -62,8 +62,10 @@ struct PassRegistrationView: View {
                 Spacer()
             }
         }
+        .ignoresSafeArea(edges: .top)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private var registrationToolbar: some View {

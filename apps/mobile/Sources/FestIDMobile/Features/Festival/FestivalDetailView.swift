@@ -2,11 +2,14 @@ import SwiftUI
 
 struct FestivalDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    let festivalTitle: String
     let hasIssuedPass: Bool
     let passKind: FestivalPassKind
+    let posterStyle: FestivalPosterStyle?
 
     @State private var selectedTab = 0
     @State private var showsQRCode = false
+    @State private var isQueueSheetPresented = false
     @State private var isQueueSheetExpanded = false
     @State private var selectedQueueTicket = false
     @State private var selectedQueueDate = false
@@ -38,11 +41,19 @@ struct FestivalDetailView: View {
         static let dayOne = "Day1 (5/26) \u{C624}\u{B298}"
         static let dayCaption = "\u{C624}\u{B298} \u{C9C4}\u{D589}\u{B418}\u{B294} \u{ACF5}\u{C5F0}\u{C758} \u{B300}\u{AE30}\u{C5F4}\u{C5D0} \u{CC38}\u{C5EC}\u{D560} \u{C218} \u{C788}\u{C5B4}\u{C694}."
         static let remoteQueue = "\u{C6D0}\u{ACA9} \u{C904}\u{C11C}\u{AE30}"
+        static let passBackgroundPoster = "\u{C11C}\u{C6B8}\u{C2DC}\u{B9BD}\u{B300}\u{D559}\u{AD50} 2026 \u{D56D}\u{D574}"
     }
 
-    init(hasIssuedPass: Bool = true, passKind: FestivalPassKind = .student) {
+    init(
+        festivalTitle: String = Copy.title,
+        hasIssuedPass: Bool = true,
+        passKind: FestivalPassKind = .student,
+        posterStyle: FestivalPosterStyle? = nil
+    ) {
+        self.festivalTitle = festivalTitle
         self.hasIssuedPass = hasIssuedPass
         self.passKind = passKind
+        self.posterStyle = posterStyle
     }
 
     var body: some View {
@@ -70,7 +81,7 @@ struct FestivalDetailView: View {
             }
 
             if hasIssuedPass && showsQRCode {
-                PassPopupOverlay(passKind: passKind) {
+                PassPopupOverlay(passKind: passKind, posterStyle: passPosterStyle) {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
                         showsQRCode = false
                     }
@@ -79,14 +90,22 @@ struct FestivalDetailView: View {
                 .zIndex(10)
             }
 
-            if selectedTab == 1 {
+            if selectedTab == 1 && !isQueueSheetPresented {
+                queueCTA
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(4)
+            }
+
+            if selectedTab == 1 && isQueueSheetPresented {
                 queueSheet
-                    .transition(.move(edge: .bottom))
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(5)
             }
         }
+        .ignoresSafeArea(edges: .top)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private var issuedPassContent: some View {
@@ -107,12 +126,19 @@ struct FestivalDetailView: View {
                     showsQRCode.toggle()
                 }
             } label: {
-                PassCard(kind: passKind)
+                PassCard(kind: passKind, posterStyle: passPosterStyle)
                     .frame(width: 301.79, height: 449.35)
             }
             .buttonStyle(.plain)
             .padding(.top, 40)
         }
+    }
+
+    private var passPosterStyle: FestivalPosterStyle? {
+        let normalizedTitle = Copy.passBackgroundPoster.precomposedStringWithCanonicalMapping
+        return FestivalPoster.localPosters.first { poster in
+            poster.title == normalizedTitle
+        }?.style ?? .image(name: Copy.passBackgroundPoster)
     }
 
     private var missingPassContent: some View {
@@ -164,7 +190,7 @@ struct FestivalDetailView: View {
             }
             .padding(.horizontal, 16)
 
-            Text(Copy.title)
+            Text(festivalTitle)
                 .font(.system(size: 17, weight: .semibold))
                 .tracking(-0.43)
                 .foregroundStyle(Color(hex: 0x1A1A1A))
@@ -190,6 +216,7 @@ struct FestivalDetailView: View {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
                 selectedTab = index
                 if index != 1 {
+                    isQueueSheetPresented = false
                     isQueueSheetExpanded = false
                 }
             }
@@ -251,51 +278,86 @@ struct FestivalDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var queueCTA: some View {
+        VStack {
+            Spacer()
+
+            Button {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
+                    isQueueSheetPresented = true
+                    isQueueSheetExpanded = false
+                }
+            } label: {
+                Text(Copy.remoteQueue)
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(Color(hex: 0x0097CE), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 45)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private var queueSheet: some View {
         GeometryReader { proxy in
             let collapsedY = proxy.size.height - 433
-            let expandedY: CGFloat = 0
+            let expandedY: CGFloat = 171
             let isReady = selectedQueueTicket && selectedQueueDate
 
-            QueueBottomSheet(
-                isExpanded: isQueueSheetExpanded,
-                isTicketSelected: selectedQueueTicket,
-                isDateSelected: selectedQueueDate,
-                isReady: isReady,
-                onClose: {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.9)) {
-                        isQueueSheetExpanded = false
-                    }
-                },
-                onExpand: {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
-                        isQueueSheetExpanded = true
-                    }
-                },
-                onToggleTicket: {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        selectedQueueTicket.toggle()
-                    }
-                },
-                onToggleDate: {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        selectedQueueDate.toggle()
-                    }
-                }
-            )
-            .offset(y: isQueueSheetExpanded ? expandedY : collapsedY)
-            .gesture(
-                DragGesture(minimumDistance: 12)
-                    .onEnded { value in
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
-                            if value.translation.height < -40 {
-                                isQueueSheetExpanded = true
-                            } else if value.translation.height > 40 {
-                                isQueueSheetExpanded = false
-                            }
+            ZStack {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.9)) {
+                            isQueueSheetPresented = false
+                            isQueueSheetExpanded = false
                         }
                     }
-            )
+
+                QueueBottomSheet(
+                    isExpanded: isQueueSheetExpanded,
+                    isTicketSelected: selectedQueueTicket,
+                    isDateSelected: selectedQueueDate,
+                    isReady: isReady,
+                    onClose: {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.9)) {
+                            isQueueSheetPresented = false
+                            isQueueSheetExpanded = false
+                        }
+                    },
+                    onExpand: {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
+                            isQueueSheetExpanded = true
+                        }
+                    },
+                    onToggleTicket: {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectedQueueTicket.toggle()
+                        }
+                    },
+                    onToggleDate: {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectedQueueDate.toggle()
+                        }
+                    }
+                )
+                .offset(y: isQueueSheetExpanded ? expandedY : collapsedY)
+                .gesture(
+                    DragGesture(minimumDistance: 12)
+                        .onEnded { value in
+                            withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
+                                if value.translation.height < -40 {
+                                    isQueueSheetExpanded = true
+                                } else if value.translation.height > 40 {
+                                    isQueueSheetExpanded = false
+                                }
+                            }
+                        }
+                )
+            }
         }
         .ignoresSafeArea(edges: .bottom)
     }
@@ -512,82 +574,120 @@ enum FestivalPassKind {
 
 private struct PassCard: View {
     let kind: FestivalPassKind
+    let posterStyle: FestivalPosterStyle?
+    var showsPassDetails = true
+    var bottomFrostHeight: CGFloat?
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12.505, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(hex: 0x0B9BD9),
-                            Color(hex: 0x91E5FF),
-                            Color(hex: 0x1686C5),
-                            Color(hex: 0xD4F3FF)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            passBackground
+
+            if let bottomFrostHeight {
+                Rectangle()
+                    .fill(.white.opacity(0.10))
+                    .frame(height: bottomFrostHeight)
+                    .background(.ultraThinMaterial)
+                    .clipShape(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 0,
+                            bottomLeadingRadius: 12.505,
+                            bottomTrailingRadius: 12.505,
+                            topTrailingRadius: 0,
+                            style: .continuous
+                        )
                     )
-                )
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+            }
 
-            marblePattern
+            if showsPassDetails {
+                passDetailsFrost
+            }
 
-            Rectangle()
-                .fill(.white.opacity(0.10))
-                .frame(height: 205.13)
-                .background(.ultraThinMaterial)
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: 12.505,
-                        bottomTrailingRadius: 12.505,
-                        topTrailingRadius: 0,
-                        style: .continuous
-                    )
-                )
-                .frame(maxHeight: .infinity, alignment: .bottom)
+            VStack(alignment: .leading, spacing: 0) {
+                if posterStyle == nil {
+                    HStack(alignment: .top) {
+                        Text("\u{D558}\n\u{C591}")
+                            .font(.system(size: 75, weight: .black))
+                            .foregroundStyle(.white)
+                            .lineSpacing(-20)
+                            .rotationEffect(.degrees(-90))
+                            .offset(x: -27, y: 36)
 
-            VStack(alignment: .leading) {
-                HStack(alignment: .top) {
-                    Text("\u{D558}\n\u{C591}")
-                        .font(.system(size: 75, weight: .black))
-                        .foregroundStyle(.white)
-                        .lineSpacing(-20)
-                        .rotationEffect(.degrees(-90))
-                        .offset(x: -27, y: 36)
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 22) {
-                        Text("26.05.18")
-                        Text("26.05.20")
+                        Spacer()
                     }
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .padding(.top, 200)
                 }
 
                 Spacer()
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(FestivalDetailView.Copy.day)
-                        .font(.system(size: 32.22, weight: .bold))
+                if showsPassDetails {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(FestivalDetailView.Copy.day)
+                            .font(.system(size: 32.22, weight: .bold))
 
-                    Text(kind.cardLabel)
-                        .font(.system(size: 53.699, weight: .bold))
-                }
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(hex: 0x00454F), Color(hex: 0x001868)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        Text(kind.cardLabel)
+                            .font(.system(size: 53.699, weight: .bold))
+                    }
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: 0x00454F), Color(hex: 0x001868)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding(.horizontal, 17)
-            .padding(.vertical, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 27)
 
         }
         .clipShape(RoundedRectangle(cornerRadius: 12.505, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var passBackground: some View {
+        if let posterStyle {
+            FestivalPosterCard(style: posterStyle, fillsImage: true)
+                .scaleEffect(1.14)
+        } else {
+            passArtwork
+            marblePattern
+        }
+    }
+
+    private var passDetailsFrost: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            Rectangle()
+                .fill(.white.opacity(0.05))
+                .background(.ultraThinMaterial)
+                .mask(
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.75), .black],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(height: 155)
+        }
+    }
+
+    private var passArtwork: some View {
+        RoundedRectangle(cornerRadius: 12.505, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(hex: 0x0B9BD9),
+                        Color(hex: 0x91E5FF),
+                        Color(hex: 0x1686C5),
+                        Color(hex: 0xD4F3FF)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
     }
 
     private var marblePattern: some View {
@@ -622,6 +722,7 @@ private struct PassCard: View {
 
 private struct PassPopupOverlay: View {
     let passKind: FestivalPassKind
+    let posterStyle: FestivalPosterStyle?
     let close: () -> Void
 
     var body: some View {
@@ -632,7 +733,7 @@ private struct PassPopupOverlay: View {
                 .onTapGesture(perform: close)
 
             VStack(spacing: 16) {
-                PassPopupCard(kind: passKind)
+                PassPopupCard(kind: passKind, posterStyle: posterStyle)
                     .frame(width: 321.7, height: 479)
                     .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 4)
 
@@ -652,20 +753,17 @@ private struct PassPopupOverlay: View {
 
 private struct PassPopupCard: View {
     let kind: FestivalPassKind
+    let posterStyle: FestivalPosterStyle?
 
     var body: some View {
         ZStack {
-            PassCard(kind: kind)
+            PassCard(kind: kind, posterStyle: posterStyle, showsPassDetails: false, bottomFrostHeight: nil)
+                .blur(radius: 2.4)
 
             VStack(alignment: .leading, spacing: 0) {
                 RoundedRectangle(cornerRadius: 25, style: .continuous)
                     .fill(.white)
                     .frame(width: 245, height: 245)
-                    .overlay {
-                        Image(systemName: "qrcode")
-                            .font(.system(size: 164, weight: .regular))
-                            .foregroundStyle(Color(hex: 0x1A1A1A))
-                    }
                     .padding(.top, 37)
                     .frame(maxWidth: .infinity)
 
@@ -679,7 +777,7 @@ private struct PassPopupCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .padding(.top, 40)
+                    .padding(.top, 58)
                     .padding(.leading, 20)
 
                 Text(kind.attendeeName)
@@ -692,7 +790,7 @@ private struct PassPopupCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .padding(.top, -4)
+                    .padding(.top, 6)
                     .padding(.leading, 20)
 
                 Spacer()

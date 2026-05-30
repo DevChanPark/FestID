@@ -11,7 +11,9 @@ struct OnboardingStartView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        if isHomePresented {
+            CamPassRootView()
+        } else {
             GeometryReader { proxy in
                 let width = proxy.size.width
                 let height = proxy.size.height
@@ -30,8 +32,7 @@ struct OnboardingStartView: View {
                             .frame(height: 181 * sy)
 
                         Text(Copy.brand)
-                            .font(.system(size: 44.855 * scale, weight: .black, design: .rounded))
-                            .italic()
+                            .font(.custom(FestIDTheme.Fonts.brand, size: 44.855 * scale))
                             .foregroundStyle(Color(hex: 0x0097CE))
                             .shadow(color: Color(hex: 0x0097CE).opacity(0.08), radius: 0, x: 0.8, y: 0)
                             .frame(height: 70 * sy, alignment: .topLeading)
@@ -73,10 +74,7 @@ struct OnboardingStartView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
-            .navigationDestination(isPresented: $isHomePresented) {
-                CamPassHomeView()
-            }
-            .toolbar(.hidden, for: .navigationBar)
+            .ignoresSafeArea(edges: .top)
         }
     }
 

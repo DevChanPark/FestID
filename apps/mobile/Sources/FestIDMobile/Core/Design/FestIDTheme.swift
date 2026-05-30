@@ -22,6 +22,10 @@ enum FestIDTheme {
         static let item: CGFloat = 12
     }
 
+    enum Fonts {
+        static let brand = "Knewave-Regular"
+    }
+
     static var pageBackground: some ShapeStyle {
         LinearGradient(
             colors: [

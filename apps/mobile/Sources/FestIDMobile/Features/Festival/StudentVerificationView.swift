@@ -11,6 +11,12 @@ struct StudentVerificationView: View {
         static let description = "\u{C7AC}\u{D559}\u{C0DD} \u{D328}\u{C2A4} \u{BC1C}\u{AE09}\u{C744} \u{C704}\u{D574} \u{D559}\u{AD50} \u{C18C}\u{C18D} \u{C815}\u{BCF4}\u{B97C} \u{C81C}\u{CD9C}\u{D574}\u{C8FC}\u{C138}\u{C694}.\n\u{C81C}\u{CD9C}\u{D55C} \u{C815}\u{BCF4}\u{B294} \u{C7AC}\u{D559}\u{C0DD} \u{C5EC}\u{BD80} \u{D655}\u{C778}\u{C5D0}\u{B9CC} \u{C0AC}\u{C6A9}\u{B3FC}\u{C694}."
         static let name = "\u{C774}\u{B984}"
         static let email = "\u{C774}\u{BA54}\u{C77C}"
+        static let verify = "\u{C778}\u{C99D}\u{D558}\u{AE30}"
+    }
+
+    private var isVerifyEnabled: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -43,10 +49,16 @@ struct StudentVerificationView: View {
                 .padding(.horizontal, 18)
 
                 Spacer()
+
+                verifyCTA
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 45)
             }
         }
+        .ignoresSafeArea(edges: .top)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private var verificationToolbar: some View {
@@ -77,19 +89,42 @@ struct StudentVerificationView: View {
     }
 
     private func verificationField(title: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 11) {
-            TextField(title, text: text)
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.system(size: 20, weight: .bold))
+                .tracking(-0.45)
+                .foregroundStyle(Color(hex: 0x727272))
+
+            TextField("", text: text)
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color(hex: 0x373742))
                 .tint(Color(hex: 0x0097CE))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .frame(height: 45)
+                .padding(.top, 10)
 
             Rectangle()
                 .fill(Color(hex: 0xCFCFD4))
                 .frame(height: 1)
         }
-        .frame(height: 71, alignment: .top)
+        .frame(height: 80, alignment: .top)
+    }
+
+    private var verifyCTA: some View {
+        Button {
+            guard isVerifyEnabled else {
+                return
+            }
+        } label: {
+            Text(Copy.verify)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .background(isVerifyEnabled ? Color(hex: 0x0097CE) : Color(hex: 0xBFBFBF), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isVerifyEnabled)
     }
 }
 

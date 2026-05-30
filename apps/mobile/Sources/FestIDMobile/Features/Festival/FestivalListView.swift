@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct FestivalListView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedStatus = 1
 
     enum Copy {
@@ -17,14 +16,13 @@ struct FestivalListView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             Color(hex: 0xE6E6ED)
                 .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(Copy.brand)
-                    .font(.system(size: 29.243, weight: .black, design: .rounded))
-                    .italic()
+                    .font(.custom(FestIDTheme.Fonts.brand, size: 29.243))
                     .foregroundStyle(Color(hex: 0x0097CE))
                     .padding(.top, 62)
                     .padding(.leading, 20)
@@ -73,14 +71,8 @@ struct FestivalListView: View {
 
                 Spacer()
             }
-
-            CamPassTabBar(selectedTab: .festival) { tab in
-                if tab == .home {
-                    dismiss()
-                }
-            }
-            .padding(.bottom, 34)
         }
+        .ignoresSafeArea(edges: .top)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
     }

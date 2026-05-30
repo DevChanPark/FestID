@@ -23,8 +23,10 @@ targets:
     platform: iOS
     sources:
       - path: Sources/FestIDMobile
-    resources:
-      - path: Resources
+      - path: Resources/Fonts
+        buildPhase: resources
+      - path: Resources/images
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.festid.mobile
